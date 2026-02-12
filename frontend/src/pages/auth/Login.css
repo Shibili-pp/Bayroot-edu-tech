@@ -1,0 +1,452 @@
+/* Login Page Styles */
+.login-page {
+  display: flex;
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+/* Left Column - Promotional Section */
+.login-left {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 50%, #1a4a6b 100%);
+}
+
+.cityscape-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.3) 100%),
+    url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600"><path d="M0,400 L50,350 L100,380 L150,320 L200,360 L250,300 L300,340 L350,280 L400,320 L450,260 L500,300 L550,240 L600,280 L650,220 L700,260 L750,200 L800,240 L850,180 L900,220 L950,160 L1000,200 L1050,140 L1100,180 L1150,120 L1200,160 L1200,600 L0,600 Z" fill="rgba(255,255,255,0.1)"/><path d="M0,500 L50,450 L100,480 L150,420 L200,460 L250,400 L300,440 L350,380 L400,420 L450,360 L500,400 L550,340 L600,380 L650,320 L700,360 L750,300 L800,340 L850,280 L900,320 L950,260 L1000,300 L1050,240 L1100,280 L1150,220 L1200,260 L1200,600 L0,600 Z" fill="rgba(255,255,255,0.15)"/></svg>');
+  background-size: cover;
+  background-position: bottom;
+  opacity: 0.6;
+}
+
+.promo-overlay {
+  position: relative;
+  z-index: 1;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 3rem;
+  max-width: 500px;
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.premium-badge {
+  display: inline-block;
+  background: rgba(50, 205, 50, 0.3);
+  color: #32cd32;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 2rem;
+  border: 1px solid rgba(50, 205, 50, 0.5);
+}
+
+.promo-title {
+  font-size: 3rem;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.2;
+  margin-bottom: 1.5rem;
+}
+
+.promo-title-accent {
+  color: #32cd32;
+}
+
+.promo-description {
+  font-size: 1rem;
+  color: #ffffff;
+  line-height: 1.6;
+  margin-bottom: 2rem;
+  opacity: 0.95;
+}
+
+.professionals-stats {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.stats-icons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.stat-icon-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.stats-text {
+  color: #ffffff;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.login-copyright {
+  position: absolute;
+  bottom: 1rem;
+  left: 2rem;
+  font-size: 0.75rem;
+  color: #ffffff;
+  opacity: 0.7;
+}
+
+/* Right Column - Login Form */
+.login-right {
+  flex: 1;
+  background: #f5f5f0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  min-height: 100vh;
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 2rem;
+  width: 100%;
+  max-width: 450px;
+}
+
+.login-page-logo {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  margin-bottom: 1rem;
+}
+
+.login-brand {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  line-height: 1;
+}
+
+.brand-name {
+  color: #333333;
+}
+
+.brand-portal {
+  color: #32cd32;
+  margin-left: 0.5rem;
+}
+
+.welcome-message {
+  color: #666666;
+  font-size: 0.95rem;
+  margin-top: 0.5rem;
+}
+
+.login-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 2.5rem;
+  width: 100%;
+  max-width: 450px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  margin-bottom: 1.5rem;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* User Type Selector */
+.user-type-selector {
+  display: flex;
+  gap: 0.5rem;
+  background: #f5f5f5;
+  padding: 4px;
+  border-radius: 12px;
+}
+
+.type-option {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border: none;
+  background: transparent;
+  color: #999999;
+  font-size: 0.95rem;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.type-option.active {
+  background: rgba(50, 205, 50, 0.15);
+  color: #32cd32;
+  font-weight: 600;
+}
+
+/* Form Styles */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-group label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #333333;
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.form-input {
+  width: 100%;
+  padding: 0.75rem 2.5rem 0.75rem 1rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.3s;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #32cd32;
+}
+
+.input-icon-right {
+  position: absolute;
+  right: 1rem;
+  color: #999999;
+  font-size: 1.1rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.password-toggle {
+  font-size: 1.2rem;
+}
+
+/* Form Options */
+.form-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+}
+
+.remember-me {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #666666;
+  cursor: pointer;
+}
+
+.remember-me input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #32cd32;
+}
+
+.forgot-password {
+  color: #32cd32;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.forgot-password:hover {
+  text-decoration: underline;
+}
+
+/* Error Message */
+.error-message {
+  background: #fee;
+  color: #c33;
+  padding: 0.75rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  border: 1px solid #fcc;
+}
+
+/* Login Button */
+.login-btn {
+  width: 100%;
+  padding: 1rem;
+  background: linear-gradient(135deg, #32cd32 0%, #228b22 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.login-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(50, 205, 50, 0.3);
+}
+
+.login-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-arrow {
+  font-size: 1.2rem;
+  font-weight: 400;
+}
+
+/* Secure Access Separator */
+.secure-separator {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 0.5rem 0;
+}
+
+.separator-line {
+  flex: 1;
+  height: 1px;
+  background: #e0e0e0;
+}
+
+.separator-text {
+  font-size: 0.75rem;
+  color: #999999;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+}
+
+/* Sign Up Prompt */
+.signup-prompt {
+  text-align: center;
+  margin-bottom: 2rem;
+  width: 100%;
+  max-width: 450px;
+}
+
+.signup-prompt p {
+  color: #666666;
+  font-size: 0.9rem;
+}
+
+.signup-link {
+  color: #32cd32;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.signup-link:hover {
+  text-decoration: underline;
+}
+
+/* Footer Links */
+.login-footer-links {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  color: #999999;
+  width: 100%;
+  max-width: 450px;
+}
+
+.footer-link {
+  color: #666666;
+  text-decoration: none;
+}
+
+.footer-link:hover {
+  color: #32cd32;
+}
+
+.footer-separator {
+  color: #cccccc;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .login-page {
+    flex-direction: column;
+  }
+
+  .login-left {
+    min-height: 40vh;
+  }
+
+  .promo-title {
+    font-size: 2rem;
+  }
+
+  .login-right {
+    min-height: auto;
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .promo-overlay {
+    padding: 2rem;
+  }
+
+  .promo-title {
+    font-size: 1.75rem;
+  }
+
+  .login-card {
+    padding: 2rem;
+  }
+
+  .login-brand {
+    font-size: 2rem;
+  }
+
+  .professionals-stats {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .login-footer-links {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+}
+

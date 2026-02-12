@@ -1,0 +1,33 @@
+const express = require('express');
+const router = express.Router();
+const studentController = require('../controllers/student.controller');
+const verifyToken = require('../middlewares/auth.middleware');
+const { authorize, checkAdmin } = require('../middlewares/role.middleware');
+const upload = require('../middlewares/upload.middleware');
+const { generalRateLimiter } = require('../middlewares/rateLimit.middleware');
+const { parsePagination } = require('../middlewares/pagination.middleware');
+
+// All student routes require authentication and rate limiting
+router.use(generalRateLimiter);
+router.use(verifyToken);
+
+// Partner can create students (Admin can create via direct DB if needed)
+router.post('/', authorize('PARTNER'), studentController.createStudent);
+
+// Partner and Admin can get all students (filtered by role) - with pagination
+router.get('/', parsePagination, authorize('PARTNER', 'ADMIN'), studentController.getAllStudents);
+
+// Partner and Admin can get single student
+router.get('/:id', authorize('PARTNER', 'ADMIN'), studentController.getStudent);
+
+// Partner and Admin can update student
+router.put('/:id', authorize('PARTNER', 'ADMIN'), studentController.updateStudent);
+
+// Partner and Admin can upload documents
+router.post('/:id/documents', authorize('PARTNER', 'ADMIN'), upload.array('documents', 10), studentController.uploadDocuments);
+
+// Only Admin can delete student
+router.delete('/:id', checkAdmin, studentController.deleteStudent);
+
+module.exports = router;
+
