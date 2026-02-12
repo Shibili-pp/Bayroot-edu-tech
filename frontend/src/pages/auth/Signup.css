@@ -459,21 +459,102 @@
 }
 
 @media (max-width: 768px) {
-  .password-row {
-    grid-template-columns: 1fr;
+  .signup-page {
+    flex-direction: column;
+  }
+
+  .signup-left {
+    display: none; /* Hide promotional section on mobile */
+  }
+
+  .signup-right {
+    width: 100%;
+    max-width: 100%;
+    min-height: 100vh;
+    justify-content: center;
+    padding: 1rem;
+    padding-top: 2rem;
+  }
+
+  .signup-header {
+    margin-bottom: 1.5rem;
+  }
+
+  .signup-logo {
+    width: 90px;
+    height: 90px;
+    margin-bottom: 0.75rem;
+  }
+
+  .signup-title {
+    font-size: 1.75rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .signup-subtitle {
+    font-size: 0.85rem;
+    margin-bottom: 1.5rem;
   }
 
   .signup-card {
-    padding: 2rem;
+    padding: 1.5rem;
+    border-radius: 12px;
+    margin-bottom: 1rem;
   }
 
-  .promo-headline {
-    font-size: 2rem;
+  .account-type-selector {
+    margin-bottom: 1.5rem;
   }
 
-  .stats-box {
-    flex-direction: column;
-    gap: 1.5rem;
+  .type-btn {
+    padding: 0.7rem 0.9rem;
+    font-size: 0.85rem;
+  }
+
+  .signup-form {
+    gap: 1.25rem;
+  }
+
+  .form-group {
+    gap: 0.4rem;
+  }
+
+  .form-group label {
+    font-size: 0.8rem;
+  }
+
+  .form-input {
+    padding: 0.875rem 1rem;
+    font-size: 1rem;
+    border-radius: 10px;
+  }
+
+  .input-with-icon .form-input {
+    padding-left: 2.5rem;
+    padding-right: 2.5rem;
+  }
+
+  .password-row {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .security-check {
+    margin-top: 0.5rem;
+  }
+
+  .security-header {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .security-label {
+    font-size: 0.7rem;
+  }
+
+  .send-code-btn {
+    font-size: 0.75rem;
   }
 
   .code-inputs {
@@ -482,12 +563,278 @@
 
   .code-input {
     font-size: 1.2rem;
-    padding: 0.6rem;
+    padding: 0.7rem;
+    border-radius: 8px;
+  }
+
+  .signup-btn {
+    padding: 0.875rem;
+    font-size: 0.95rem;
+    border-radius: 10px;
+    margin-top: 0.5rem;
+  }
+
+  .signup-footer {
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+  }
+
+  .signup-footer p {
+    font-size: 0.85rem;
+  }
+}
+
+/* Mobile Devices (480px and below) */
+@media (max-width: 480px) {
+  .signup-left {
+    display: none; /* Hide promotional section on mobile */
+  }
+
+  .signup-right {
+    padding: 0.75rem;
+    padding-top: 1.5rem;
+  }
+
+  .signup-header {
+    margin-bottom: 1.25rem;
+  }
+
+  .signup-logo {
+    width: 100px;
+    height: 100px;
+    margin-bottom: 0.75rem;
+  }
+
+  .signup-title {
+    font-size: 1.5rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .signup-subtitle {
+    font-size: 0.8rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .signup-card {
+    padding: 1.25rem;
+    border-radius: 12px;
+  }
+
+  .account-type-selector {
+    margin-bottom: 1.25rem;
+  }
+
+  .type-btn {
+    padding: 0.65rem 0.8rem;
+    font-size: 0.8rem;
+  }
+
+  .signup-form {
+    gap: 1rem;
+  }
+
+  .form-group {
+    gap: 0.35rem;
+  }
+
+  .form-group label {
+    font-size: 0.75rem;
+  }
+
+  .form-input {
+    padding: 0.8rem 0.875rem;
+    font-size: 0.95rem;
+    border-radius: 8px;
+  }
+
+  .input-with-icon .form-input {
+    padding-left: 2.25rem;
+    padding-right: 2.25rem;
+  }
+
+  .input-icon {
+    left: 0.875rem;
+    font-size: 1rem;
+  }
+
+  .password-toggle {
+    right: 0.875rem;
+    font-size: 1rem;
+  }
+
+  .password-row {
+    gap: 0.875rem;
   }
 
   .security-header {
-    flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: 0.4rem;
+    margin-bottom: 0.65rem;
+  }
+
+  .security-label {
+    font-size: 0.65rem;
+  }
+
+  .send-code-btn {
+    font-size: 0.7rem;
+  }
+
+  .code-inputs {
+    gap: 0.4rem;
+  }
+
+  .code-input {
+    font-size: 1.1rem;
+    padding: 0.65rem;
+    border-radius: 8px;
+  }
+
+  .error-message,
+  .success-message {
+    padding: 0.65rem;
+    font-size: 0.85rem;
+    border-radius: 8px;
+  }
+
+  .signup-btn {
+    padding: 0.8rem;
+    font-size: 0.9rem;
+    border-radius: 8px;
+  }
+
+  .signup-footer {
+    margin-top: 1rem;
+    padding-top: 1rem;
+  }
+
+  .signup-footer p {
+    font-size: 0.8rem;
+  }
+
+  .signin-link {
+    font-size: 0.8rem;
+  }
+}
+
+/* Very Small Devices (360px and below) */
+@media (max-width: 360px) {
+  .signup-left {
+    display: none; /* Hide promotional section on mobile */
+  }
+
+  .signup-right {
+    padding: 0.5rem;
+    padding-top: 1rem;
+  }
+
+  .signup-header {
+    margin-bottom: 1rem;
+  }
+
+  .signup-logo {
+    width: 90px;
+    height: 90px;
+    margin-bottom: 0.5rem;
+  }
+
+  .signup-title {
+    font-size: 1.25rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .signup-subtitle {
+    font-size: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .signup-card {
+    padding: 1rem;
+    border-radius: 12px;
+  }
+
+  .account-type-selector {
+    margin-bottom: 1rem;
+  }
+
+  .type-btn {
+    padding: 0.6rem 0.7rem;
+    font-size: 0.75rem;
+  }
+
+  .signup-form {
+    gap: 0.875rem;
+  }
+
+  .form-group {
+    gap: 0.3rem;
+  }
+
+  .form-group label {
+    font-size: 0.7rem;
+  }
+
+  .form-input {
+    padding: 0.75rem 0.75rem;
+    font-size: 0.9rem;
+  }
+
+  .input-with-icon .form-input {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+
+  .input-icon {
+    left: 0.75rem;
+    font-size: 0.95rem;
+  }
+
+  .password-toggle {
+    right: 0.75rem;
+    font-size: 0.95rem;
+  }
+
+  .password-row {
+    gap: 0.75rem;
+  }
+
+  .security-header {
+    gap: 0.3rem;
+    margin-bottom: 0.6rem;
+  }
+
+  .security-label {
+    font-size: 0.6rem;
+  }
+
+  .send-code-btn {
+    font-size: 0.65rem;
+  }
+
+  .code-inputs {
+    gap: 0.35rem;
+  }
+
+  .code-input {
+    font-size: 1rem;
+    padding: 0.6rem;
+  }
+
+  .signup-btn {
+    padding: 0.75rem;
+    font-size: 0.85rem;
+  }
+
+  .signup-footer {
+    margin-top: 0.875rem;
+    padding-top: 0.875rem;
+  }
+
+  .signup-footer p {
+    font-size: 0.75rem;
+  }
+
+  .signin-link {
+    font-size: 0.75rem;
   }
 }
 

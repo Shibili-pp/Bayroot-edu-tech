@@ -10,7 +10,6 @@ import './Login.css';
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -132,16 +131,8 @@ const Login = () => {
               </div>
             </div>
 
-            {/* Remember Me & Forgot Password */}
+            {/* Forgot Password */}
             <div className="form-options">
-              <label className="remember-me">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                />
-                <span>Remember me</span>
-              </label>
               <Link to="#" className="forgot-password">
                 Forgot Password?
               </Link>
