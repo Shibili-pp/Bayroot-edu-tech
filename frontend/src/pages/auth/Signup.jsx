@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
-import logo from '../../assets/bayroot-removebg-preview.png';
+import logo from '../../assets/EDU CONNECT.png';
+import promoLogo from '../../assets/edu connectw.png';
 import './Signup.css';
 
 /**
@@ -10,6 +11,7 @@ import './Signup.css';
 const Signup = () => {
   const [accountType, setAccountType] = useState('partner'); // 'partner' or 'admin'
   const [email, setEmail] = useState('');
+  const [mobileNumber, setMobileNumber] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [companyName, setCompanyName] = useState(''); // For partner
@@ -18,6 +20,8 @@ const Signup = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [sendingOTP, setSendingOTP] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
@@ -25,6 +29,8 @@ const Signup = () => {
 
   // Handle verification code input
   const handleCodeChange = (index, value) => {
+    // Only allow numbers
+    if (value && !/^\d$/.test(value)) return;
     if (value.length > 1) return; // Only allow single digit
     
     const newCode = [...verificationCode];
@@ -46,10 +52,37 @@ const Signup = () => {
     }
   };
 
-  // Send verification code (mock for now)
-  const handleSendCode = () => {
-    // TODO: Implement actual verification code sending
-    alert('Verification code sent to your email!');
+  // Send verification code
+  const handleSendCode = async () => {
+    if (!email) {
+      setError('Please enter your email address first');
+      return;
+    }
+
+    setError('');
+    setSendingOTP(true);
+
+    try {
+      const endpoint = accountType === 'admin' 
+        ? '/admin/send-signup-otp' 
+        : '/partner/send-signup-otp';
+      
+      const response = await api.post(endpoint, { email });
+
+      if (response.data.success) {
+        setOtpSent(true);
+        setSuccess('OTP sent to your email! Please check your inbox.');
+        // Clear OTP fields
+        setVerificationCode(['', '', '', '']);
+      } else {
+        setError(response.data.message || 'Failed to send OTP');
+      }
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to send OTP. Please try again.';
+      setError(errorMessage);
+    } finally {
+      setSendingOTP(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -58,6 +91,23 @@ const Signup = () => {
     setSuccess('');
 
     // Validation
+    if (!email) {
+      setError('Email is required');
+      return;
+    }
+
+    if (!mobileNumber) {
+      setError('Mobile number is required');
+      return;
+    }
+
+    // Basic mobile number validation (at least 10 digits)
+    const mobileRegex = /^[0-9]{10,15}$/;
+    if (!mobileRegex.test(mobileNumber.replace(/[\s\-\(\)]/g, ''))) {
+      setError('Please enter a valid mobile number (10-15 digits)');
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -68,10 +118,15 @@ const Signup = () => {
       return;
     }
 
-    // Check verification code (mock validation for now)
+    // Check verification code
     const code = verificationCode.join('');
     if (code.length !== 4) {
       setError('Please enter the complete verification code');
+      return;
+    }
+
+    if (!otpSent) {
+      setError('Please request an OTP first by clicking "SEND CODE"');
       return;
     }
 
@@ -80,8 +135,8 @@ const Signup = () => {
     try {
       const endpoint = accountType === 'admin' ? '/admin/register' : '/partner/register';
       const payload = accountType === 'admin' 
-        ? { name, email, password }
-        : { companyName, email, password };
+        ? { name, email, mobileNumber, password, otp: code }
+        : { companyName, email, mobileNumber, password, otp: code };
 
       const response = await api.post(endpoint, payload);
 
@@ -107,7 +162,7 @@ const Signup = () => {
       <div className="signup-left">
         <div className="promo-content">
           <div className="logo-placeholder">
-            <img src={logo} alt="Bayroot Logo" className="promo-logo" />
+            <img src={promoLogo} alt="Bayroot Logo" className="promo-logo" />
           </div>
           
           <h1 className="promo-headline">
@@ -220,6 +275,24 @@ const Signup = () => {
               </div>
             </div>
 
+            {/* Mobile Number */}
+            <div className="form-group">
+              <label htmlFor="mobileNumber">Mobile Number</label>
+              <div className="input-with-icon">
+                <span className="input-icon">📱</span>
+                <input
+                  id="mobileNumber"
+                  type="tel"
+                  value={mobileNumber}
+                  onChange={(e) => setMobileNumber(e.target.value.replace(/[^0-9]/g, ''))}
+                  className="form-input"
+                  required
+                  placeholder="Enter your mobile number"
+                  maxLength="15"
+                />
+              </div>
+            </div>
+
             {/* Password Fields - Side by Side */}
             <div className="password-row">
               <div className="form-group">
@@ -270,8 +343,9 @@ const Signup = () => {
                   type="button"
                   className="send-code-btn"
                   onClick={handleSendCode}
+                  disabled={sendingOTP || !email}
                 >
-                  SEND CODE
+                  {sendingOTP ? 'SENDING...' : 'SEND CODE'}
                 </button>
               </div>
               <div className="code-inputs">

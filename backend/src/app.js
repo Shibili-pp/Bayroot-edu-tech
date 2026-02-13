@@ -8,6 +8,8 @@ const adminRoutes = require('./routes/admin.routes');
 const partnerRoutes = require('./routes/partner.routes');
 const studentRoutes = require('./routes/student.routes');
 const fileRoutes = require('./routes/file.routes');
+const courseRoutes = require('./routes/course.routes');
+const universityRoutes = require('./routes/university.routes');
 
 const app = express();
 
@@ -98,6 +100,8 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/partner', partnerRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/files', fileRoutes);
+app.use('/api/courses', courseRoutes);
+app.use('/api/universities', universityRoutes);
 
 // 404 handler
 app.use((req, res) => {

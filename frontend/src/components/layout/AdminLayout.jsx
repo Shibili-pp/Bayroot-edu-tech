@@ -19,7 +19,7 @@ const AdminLayout = ({ children }) => {
         <div className="header-content">
           <h2>Bayroot Edu Tech - Admin</h2>
           <div className="header-actions">
-            <span className="user-info">Welcome, {user?.id || 'Admin'}</span>
+            <span className="user-info">Welcome, {user?.name || user?.email || 'Admin'}</span>
             <button onClick={handleLogout} className="btn-logout">
               Logout
             </button>
@@ -48,4 +48,7 @@ const AdminLayout = ({ children }) => {
 };
 
 export default AdminLayout;
+
+
+
 

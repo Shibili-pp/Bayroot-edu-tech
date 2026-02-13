@@ -14,6 +14,11 @@ const adminSchema = new mongoose.Schema({
     lowercase: true,
     trim: true
   },
+  mobileNumber: {
+    type: String,
+    required: true,
+    trim: true
+  },
   password: {
     type: String,
     required: true,
@@ -43,4 +48,7 @@ adminSchema.methods.comparePassword = async function(candidatePassword) {
 };
 
 module.exports = mongoose.model('Admin', adminSchema);
+
+
+
 

@@ -26,23 +26,25 @@ const studentSchema = new mongoose.Schema({
   },
   passportNumber: {
     type: String,
-    trim: true
+    trim: true,
+    default: null
     // Optional, stored encrypted
   },
-  countryPreference: {
+  aadharNumber: {
     type: String,
     required: true,
     trim: true
+    // Required, stored encrypted
   },
-  coursePreference: {
-    type: String,
-    required: true,
-    trim: true
+  courseId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Course',
+    required: true
   },
-  intake: {
-    type: String,
-    required: true,
-    trim: true
+  universityId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'University',
+    required: true
   },
   partnerId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -61,6 +63,9 @@ const studentSchema = new mongoose.Schema({
     fileType: {
       type: String,
       enum: ['image', 'video', 'pdf']
+    },
+    url: {
+      type: String
     },
     uploadedAt: {
       type: Date,
@@ -93,6 +98,9 @@ studentSchema.pre('save', function(next) {
   if (this.isModified('passportNumber') && this.passportNumber && !isEncrypted(this.passportNumber)) {
     this.passportNumber = encrypt(this.passportNumber);
   }
+  if (this.isModified('aadharNumber') && this.aadharNumber && !isEncrypted(this.aadharNumber)) {
+    this.aadharNumber = encrypt(this.aadharNumber);
+  }
   next();
 });
 
@@ -109,6 +117,9 @@ studentSchema.pre(['updateOne', 'findOneAndUpdate'], function(next) {
     if (update.$set.passportNumber && !isEncrypted(update.$set.passportNumber)) {
       update.$set.passportNumber = encrypt(update.$set.passportNumber);
     }
+    if (update.$set.aadharNumber && !isEncrypted(update.$set.aadharNumber)) {
+      update.$set.aadharNumber = encrypt(update.$set.aadharNumber);
+    }
   } else {
     if (update.email && !isEncrypted(update.email)) {
       update.email = encrypt(update.email);
@@ -118,6 +129,9 @@ studentSchema.pre(['updateOne', 'findOneAndUpdate'], function(next) {
     }
     if (update.passportNumber && !isEncrypted(update.passportNumber)) {
       update.passportNumber = encrypt(update.passportNumber);
+    }
+    if (update.aadharNumber && !isEncrypted(update.aadharNumber)) {
+      update.aadharNumber = encrypt(update.aadharNumber);
     }
   }
   next();

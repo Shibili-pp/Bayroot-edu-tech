@@ -18,10 +18,12 @@ const formatStudentResponse = (student, role) => {
       fullName: studentObj.fullName,
       email: decrypt(studentObj.email),
       phone: decrypt(studentObj.phone),
-      passportNumber: studentObj.passportNumber ? decrypt(studentObj.passportNumber) : undefined,
-      countryPreference: studentObj.countryPreference,
-      coursePreference: studentObj.coursePreference,
-      intake: studentObj.intake,
+      passportNumber: studentObj.passportNumber ? decrypt(studentObj.passportNumber) : null,
+      aadharNumber: decrypt(studentObj.aadharNumber),
+      courseId: studentObj.courseId,
+      course: studentObj.course || null,
+      universityId: studentObj.universityId,
+      university: studentObj.university || null,
       partnerId: studentObj.partnerId,
       documents: studentObj.documents || [],
       createdAt: studentObj.createdAt
@@ -35,10 +37,12 @@ const formatStudentResponse = (student, role) => {
       fullName: studentObj.fullName,
       email: mask(decrypt(studentObj.email), 3), // Show last 3 chars
       phone: mask(decrypt(studentObj.phone), 4), // Show last 4 digits
-      passportNumber: studentObj.passportNumber ? mask(decrypt(studentObj.passportNumber), 2) : undefined,
-      countryPreference: studentObj.countryPreference,
-      coursePreference: studentObj.coursePreference,
-      intake: studentObj.intake,
+      passportNumber: studentObj.passportNumber ? mask(decrypt(studentObj.passportNumber), 2) : null,
+      aadharNumber: mask(decrypt(studentObj.aadharNumber), 4), // Show last 4 digits
+      courseId: studentObj.courseId,
+      course: studentObj.course || null,
+      universityId: studentObj.universityId,
+      university: studentObj.university || null,
       partnerId: studentObj.partnerId,
       documents: studentObj.documents || [],
       createdAt: studentObj.createdAt
@@ -49,13 +53,17 @@ const formatStudentResponse = (student, role) => {
   return {
     id: studentObj._id || studentObj.id,
     fullName: studentObj.fullName,
-    countryPreference: studentObj.countryPreference,
-    coursePreference: studentObj.coursePreference,
-    intake: studentObj.intake
+    courseId: studentObj.courseId,
+    course: studentObj.course || null,
+    universityId: studentObj.universityId,
+    university: studentObj.university || null
   };
 };
 
 module.exports = {
   formatStudentResponse
 };
+
+
+
 

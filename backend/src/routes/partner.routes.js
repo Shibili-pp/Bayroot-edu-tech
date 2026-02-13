@@ -7,8 +7,11 @@ const { authRateLimiter, generalRateLimiter } = require('../middlewares/rateLimi
 const { verifyAccountNotLocked } = require('../middlewares/accountLockout.middleware');
 
 // Public routes with rate limiting
+router.post('/send-signup-otp', generalRateLimiter, partnerController.sendSignupOTP);
 router.post('/register', generalRateLimiter, partnerController.register);
 router.post('/login', authRateLimiter, verifyAccountNotLocked, partnerController.login);
+router.post('/send-forgot-password-otp', generalRateLimiter, partnerController.sendForgotPasswordOTP);
+router.post('/reset-password', generalRateLimiter, partnerController.resetPassword);
 
 // Protected routes
 router.get('/profile', generalRateLimiter, verifyToken, checkPartner, partnerController.getProfile);

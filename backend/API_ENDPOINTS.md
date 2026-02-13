@@ -154,3 +154,6 @@ curl http://localhost:3000/api/admin/profile \
 2. **"Access denied"** - Make sure you're including the JWT token in the Authorization header
 3. **"Invalid token"** - Token may have expired or is incorrect. Login again to get a new token.
 
+
+
+

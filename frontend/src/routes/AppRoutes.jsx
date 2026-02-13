@@ -5,6 +5,7 @@ import ProtectedRoute from '../components/common/ProtectedRoute';
 // Pages
 import Login from '../pages/auth/Login';
 import Signup from '../pages/auth/Signup';
+import ForgotPassword from '../pages/auth/ForgotPassword';
 import AdminDashboard from '../pages/admin/Dashboard';
 import PartnerDashboard from '../pages/partner/Dashboard';
 import NotFound from '../pages/common/NotFound';
@@ -43,6 +44,20 @@ const AppRoutes = () => {
             )
           ) : (
             <Signup />
+          )
+        }
+      />
+      <Route
+        path="/forgot-password"
+        element={
+          isAuthenticated ? (
+            user?.role === 'ADMIN' ? (
+              <Navigate to="/admin/dashboard" replace />
+            ) : (
+              <Navigate to="/partner/dashboard" replace />
+            )
+          ) : (
+            <ForgotPassword />
           )
         }
       />

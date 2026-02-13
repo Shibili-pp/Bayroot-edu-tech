@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import logo from '../../assets/bayroot-removebg-preview.png';
+import logo from '../../assets/EDU CONNECT.png';
 import './Login.css';
 
 /**
@@ -82,10 +82,10 @@ const Login = () => {
       <div className="login-right">
         <div className="login-header">
           <img src={logo} alt="Bayroot Logo" className="login-page-logo" />
-          <h1 className="login-brand">
-            <span className="brand-name">BAYROOT</span>
-            <span className="brand-portal">Portal</span>
-          </h1>
+              <h1 className="login-brand">
+                <span className="brand-name">BAYROOT</span>
+                <span className="brand-portal">EDUCONNECT</span>
+              </h1>
           <p className="welcome-message">Welcome back! Please enter your details.</p>
         </div>
 
@@ -133,7 +133,7 @@ const Login = () => {
 
             {/* Forgot Password */}
             <div className="form-options">
-              <Link to="#" className="forgot-password">
+              <Link to="/forgot-password" className="forgot-password">
                 Forgot Password?
               </Link>
             </div>

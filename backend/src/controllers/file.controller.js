@@ -85,6 +85,63 @@ const downloadFile = async (req, res) => {
 };
 
 /**
+ * Upload file (for use before student creation)
+ * POST /api/files/upload
+ */
+const uploadFile = async (req, res) => {
+  try {
+    if (!req.file) {
+      return sendError(res, 'No file uploaded', 400);
+    }
+
+    const userId = req.user.userId || req.user.id;
+    const role = req.user.role;
+
+    // Determine file type
+    let fileType = 'pdf';
+    if (req.file.mimetype.startsWith('image/')) {
+      fileType = 'image';
+    } else if (req.file.mimetype.startsWith('video/')) {
+      fileType = 'video';
+    }
+
+    // Generate file ID
+    const { v4: uuidv4 } = require('uuid');
+    const fileId = uuidv4();
+
+    // Create file metadata
+    const fileMetadata = {
+      fileId: fileId,
+      filename: req.file.filename,
+      originalName: req.file.originalname,
+      path: req.file.path,
+      fileType: fileType,
+      url: `/api/files/${fileId}`, // URL to access the file
+      uploadedAt: new Date()
+    };
+
+    // Log audit
+    await logAudit({
+      userId,
+      userModel: role === 'ADMIN' ? 'Admin' : 'Partner',
+      role,
+      action: 'UPLOAD_FILE',
+      metadata: { 
+        fileId, 
+        filename: req.file.originalname,
+        fileType: fileType
+      },
+      ipAddress: getClientIp(req),
+      userAgent: req.get('user-agent')
+    });
+
+    return sendSuccess(res, { file: fileMetadata }, 'File uploaded successfully');
+  } catch (error) {
+    return sendError(res, error.message, 500);
+  }
+};
+
+/**
  * Get content type based on file type
  */
 const getContentType = (fileType) => {
@@ -97,6 +154,6 @@ const getContentType = (fileType) => {
 };
 
 module.exports = {
-  downloadFile
+  downloadFile,
+  uploadFile
 };
-

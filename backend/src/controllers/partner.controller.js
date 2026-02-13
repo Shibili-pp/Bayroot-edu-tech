@@ -5,18 +5,57 @@ const { sendSuccess, sendError } = require('../utils/response.util');
 const { logAudit, getClientIp } = require('../utils/audit.util');
 const { recordFailedAttempt, resetFailedAttempts } = require('../middlewares/accountLockout.middleware');
 const { blacklistToken } = require('../middlewares/tokenBlacklist.middleware');
+const { sendOTP, verifyOTP, isOTPVerified } = require('../utils/otp.util');
 
-// Register Partner
+// Send OTP for Partner signup
+const sendSignupOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return sendError(res, 'Email is required', 400);
+    }
+
+    // Check if partner already exists
+    const existingPartner = await Partner.findOne({ email });
+    if (existingPartner) {
+      return sendError(res, 'Partner with this email already exists', 400);
+    }
+
+    // Send OTP
+    await sendOTP(email, 'SIGNUP', 'Partner');
+
+    return sendSuccess(res, null, 'OTP sent to your email. Please check your inbox.', 200);
+  } catch (error) {
+    return sendError(res, error.message || 'Failed to send OTP', 500);
+  }
+};
+
+// Verify OTP and Register Partner
 const register = async (req, res) => {
   try {
-    const { companyName, email, password } = req.body;
+    const { companyName, email, mobileNumber, password, otp } = req.body;
+
+    if (!otp) {
+      return sendError(res, 'OTP is required', 400);
+    }
+
+    if (!mobileNumber) {
+      return sendError(res, 'Mobile number is required', 400);
+    }
+
+    // Verify OTP
+    const otpVerification = await verifyOTP(email, otp, 'SIGNUP');
+    if (!otpVerification.success) {
+      return sendError(res, otpVerification.message || 'Invalid or expired OTP', 400);
+    }
 
     const existingPartner = await Partner.findOne({ email });
     if (existingPartner) {
       return sendError(res, 'Partner with this email already exists', 400);
     }
 
-    const partner = new Partner({ companyName, email, password });
+    const partner = new Partner({ companyName, email, mobileNumber, password });
     await partner.save();
 
     const token = jwt.sign(
@@ -24,6 +63,16 @@ const register = async (req, res) => {
       JWT_SECRET,
       { expiresIn: '7d' }
     );
+
+    // Log audit
+    await logAudit({
+      userId: partner._id,
+      userModel: 'Partner',
+      role: partner.role,
+      action: 'LOGIN',
+      ipAddress: getClientIp(req),
+      userAgent: req.get('user-agent')
+    });
 
     return sendSuccess(res, {
       token,
@@ -139,6 +188,7 @@ const getProfile = async (req, res) => {
         id: partner._id.toString(),
         companyName: partner.companyName,
         email: partner.email,
+        mobileNumber: partner.mobileNumber,
         role: partner.role,
         isActive: partner.isActive
       }
@@ -148,10 +198,86 @@ const getProfile = async (req, res) => {
   }
 };
 
+// Forgot Password - Send OTP
+const sendForgotPasswordOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return sendError(res, 'Email is required', 400);
+    }
+
+    const partner = await Partner.findOne({ email });
+    if (!partner) {
+      // Don't reveal if email exists (security best practice)
+      return sendSuccess(res, null, 'If the email exists, an OTP has been sent.', 200);
+    }
+
+    if (!partner.isActive) {
+      return sendError(res, 'Account is inactive. Please contact administrator.', 403);
+    }
+
+    // Send OTP
+    await sendOTP(email, 'FORGOT_PASSWORD', 'Partner');
+
+    return sendSuccess(res, null, 'OTP sent to your email. Please check your inbox.', 200);
+  } catch (error) {
+    return sendError(res, error.message || 'Failed to send OTP', 500);
+  }
+};
+
+// Reset Password - Verify OTP and Reset
+const resetPassword = async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    if (!otp || !newPassword) {
+      return sendError(res, 'OTP and new password are required', 400);
+    }
+
+    if (newPassword.length < 6) {
+      return sendError(res, 'Password must be at least 6 characters', 400);
+    }
+
+    // Verify OTP
+    const otpVerification = await verifyOTP(email, otp, 'FORGOT_PASSWORD');
+    if (!otpVerification.success) {
+      return sendError(res, otpVerification.message || 'Invalid or expired OTP', 400);
+    }
+
+    const partner = await Partner.findOne({ email });
+    if (!partner) {
+      return sendError(res, 'Partner not found', 404);
+    }
+
+    // Update password
+    partner.password = newPassword;
+    await partner.save();
+
+    // Log audit
+    await logAudit({
+      userId: partner._id,
+      userModel: 'Partner',
+      role: partner.role,
+      action: 'UPDATE_STUDENT', // Using existing action, could add RESET_PASSWORD
+      metadata: { action: 'RESET_PASSWORD' },
+      ipAddress: getClientIp(req),
+      userAgent: req.get('user-agent')
+    });
+
+    return sendSuccess(res, null, 'Password reset successfully. Please login with your new password.', 200);
+  } catch (error) {
+    return sendError(res, error.message, 500);
+  }
+};
+
 module.exports = {
+  sendSignupOTP,
   register,
   login,
   logout,
-  getProfile
+  getProfile,
+  sendForgotPasswordOTP,
+  resetPassword
 };
 

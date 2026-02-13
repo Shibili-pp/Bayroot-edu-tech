@@ -1,4 +1,6 @@
 const Student = require('../models/Student.model');
+const Course = require('../models/Course.model');
+const University = require('../models/University.model');
 const { sendSuccess, sendError } = require('../utils/response.util');
 const { formatStudentResponse } = require('../utils/studentResponse.util');
 const { logAudit, getClientIp } = require('../utils/audit.util');
@@ -15,21 +17,73 @@ const createStudent = async (req, res) => {
       return sendError(res, 'Only partners can create students', 403);
     }
 
-    const { fullName, email, phone, passportNumber, countryPreference, coursePreference, intake } = req.body;
+    const { fullName, email, phone, passportNumber, aadharNumber, courseId, universityId, documents } = req.body;
+    
+    // Validate required fields
+    if (!fullName || !email || !phone || !aadharNumber || !courseId || !universityId) {
+      return sendError(res, 'Missing required fields: fullName, email, phone, aadharNumber, courseId, universityId', 400);
+    }
+
+    // Validate course exists
+    const course = await Course.findById(courseId);
+    if (!course || !course.isActive) {
+      return sendError(res, 'Invalid or inactive course', 400);
+    }
+
+    // Validate university exists
+    const university = await University.findById(universityId);
+    if (!university || !university.isActive) {
+      return sendError(res, 'Invalid or inactive university', 400);
+    }
+
+    // Process documents (can be URLs or file uploads)
+    const processedDocuments = (documents || []).map(doc => {
+      if (typeof doc === 'string') {
+        // If it's a URL string
+        return {
+          fileId: uuidv4(),
+          url: doc,
+          fileType: doc.toLowerCase().endsWith('.pdf') ? 'pdf' : 'image',
+          originalName: doc.split('/').pop() || 'document'
+        };
+      } else if (doc.fileId && doc.path) {
+        // If it's a file upload object with fileId and path
+        return {
+          fileId: doc.fileId,
+          filename: doc.filename,
+          originalName: doc.originalName,
+          path: doc.path,
+          fileType: doc.fileType,
+          url: doc.url || `/api/files/${doc.fileId}`
+        };
+      } else if (doc.url) {
+        // If it's an object with URL only
+        return {
+          fileId: uuidv4(),
+          url: doc.url,
+          fileType: doc.fileType || (doc.url.toLowerCase().endsWith('.pdf') ? 'pdf' : 'image'),
+          originalName: doc.originalName || doc.url.split('/').pop() || 'document'
+        };
+      }
+      return null;
+    }).filter(Boolean);
     
     const student = new Student({
       fullName,
       email,
       phone,
-      passportNumber,
-      countryPreference,
-      coursePreference,
-      intake,
-      partnerId: userId
+      passportNumber: passportNumber || null,
+      aadharNumber,
+      courseId,
+      universityId,
+      partnerId: userId,
+      documents: processedDocuments
     });
 
     await student.save();
     await student.populate('partnerId', 'companyName email');
+    await student.populate('courseId', 'name description');
+    await student.populate('universityId', 'name country');
 
     // Log audit
     await logAudit({
@@ -69,6 +123,8 @@ const getAllStudents = async (req, res) => {
     // Fetch paginated students
     const students = await Student.find(query)
       .populate('partnerId', 'companyName email')
+      .populate('courseId', 'name description')
+      .populate('universityId', 'name country')
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit);
@@ -113,7 +169,10 @@ const getStudent = async (req, res) => {
       query.partnerId = userId;
     }
 
-    const student = await Student.findOne(query).populate('partnerId', 'companyName email');
+    const student = await Student.findOne(query)
+      .populate('partnerId', 'companyName email')
+      .populate('courseId', 'name description')
+      .populate('universityId', 'name country');
     if (!student) {
       return sendError(res, 'Student not found', 404);
     }
@@ -156,19 +215,64 @@ const updateStudent = async (req, res) => {
       return sendError(res, 'Student not found', 404);
     }
 
-    const { fullName, email, phone, passportNumber, countryPreference, coursePreference, intake } = req.body;
+    const { fullName, email, phone, passportNumber, aadharNumber, courseId, universityId, documents } = req.body;
     
     // Update fields (encryption handled by model hooks)
     if (fullName !== undefined) student.fullName = fullName;
     if (email !== undefined) student.email = email;
     if (phone !== undefined) student.phone = phone;
-    if (passportNumber !== undefined) student.passportNumber = passportNumber;
-    if (countryPreference !== undefined) student.countryPreference = countryPreference;
-    if (coursePreference !== undefined) student.coursePreference = coursePreference;
-    if (intake !== undefined) student.intake = intake;
+    if (passportNumber !== undefined) student.passportNumber = passportNumber || null;
+    if (aadharNumber !== undefined) student.aadharNumber = aadharNumber;
+    if (courseId !== undefined) {
+      const course = await Course.findById(courseId);
+      if (!course || !course.isActive) {
+        return sendError(res, 'Invalid or inactive course', 400);
+      }
+      student.courseId = courseId;
+    }
+    if (universityId !== undefined) {
+      const university = await University.findById(universityId);
+      if (!university || !university.isActive) {
+        return sendError(res, 'Invalid or inactive university', 400);
+      }
+      student.universityId = universityId;
+    }
+    if (documents !== undefined && Array.isArray(documents)) {
+      const processedDocuments = documents.map(doc => {
+        if (typeof doc === 'string') {
+          return {
+            fileId: uuidv4(),
+            url: doc,
+            fileType: doc.toLowerCase().endsWith('.pdf') ? 'pdf' : 'image',
+            originalName: doc.split('/').pop() || 'document'
+          };
+        } else if (doc.fileId && doc.path) {
+          // If it's a file upload object with fileId and path
+          return {
+            fileId: doc.fileId,
+            filename: doc.filename,
+            originalName: doc.originalName,
+            path: doc.path,
+            fileType: doc.fileType,
+            url: doc.url || `/api/files/${doc.fileId}`
+          };
+        } else if (doc.url) {
+          return {
+            fileId: uuidv4(),
+            url: doc.url,
+            fileType: doc.fileType || (doc.url.toLowerCase().endsWith('.pdf') ? 'pdf' : 'image'),
+            originalName: doc.originalName || doc.url.split('/').pop() || 'document'
+          };
+        }
+        return null;
+      }).filter(Boolean);
+      student.documents = processedDocuments;
+    }
 
     await student.save();
     await student.populate('partnerId', 'companyName email');
+    await student.populate('courseId', 'name description');
+    await student.populate('universityId', 'name country');
 
     // Log audit
     await logAudit({

@@ -14,6 +14,11 @@ const partnerSchema = new mongoose.Schema({
     lowercase: true,
     trim: true
   },
+  mobileNumber: {
+    type: String,
+    required: true,
+    trim: true
+  },
   password: {
     type: String,
     required: true,
@@ -47,4 +52,7 @@ partnerSchema.methods.comparePassword = async function(candidatePassword) {
 };
 
 module.exports = mongoose.model('Partner', partnerSchema);
+
+
+
 
