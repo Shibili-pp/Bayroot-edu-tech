@@ -113,6 +113,18 @@ const PartnerLayout = ({ children }) => {
               <div className="user-role">Partner Admin</div>
             </div>
           </div>
+          <button 
+            className="logout-button"
+            onClick={handleLogout}
+            aria-label="Logout"
+          >
+            <span className="nav-icon">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <path d="M6.75 15.75H3.75C3.33579 15.75 3 15.4142 3 15V3C3 2.58579 3.33579 2.25 3.75 2.25H6.75M12.75 12.75L15.75 9.75M15.75 9.75L12.75 6.75M15.75 9.75H6.75" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </span>
+            <span className="nav-label">Logout</span>
+          </button>
         </div>
       </aside>
 

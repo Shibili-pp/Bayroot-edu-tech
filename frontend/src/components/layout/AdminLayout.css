@@ -1,5 +1,5 @@
-/* Partner Layout Styles - Professional Simple Sidebar */
-.partner-layout {
+/* Admin Layout Styles - Professional Simple Sidebar */
+.admin-layout {
   display: flex;
   min-height: 100vh;
   background: #f9fafb;
@@ -31,10 +31,10 @@
   flex-shrink: 0;
 }
 
-.header-logo-img {
-  height: 40px;
-  width: auto;
-  object-fit: contain;
+.logo-text {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #2563eb;
 }
 
 /* Left Sidebar */
@@ -59,12 +59,12 @@
 
 /* Logo Section */
 .sidebar-header {
-  padding: 0.75rem 1rem;
+  padding: 1rem;
   border-bottom: 1px solid #f3f4f6;
   background: white;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 @media (max-width: 1024px) {
@@ -76,14 +76,8 @@
 .logo-container {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   width: 100%;
-}
-
-.sidebar-logo {
-  width: 120px;
-  height: 80px;
-  object-fit: contain;
 }
 
 /* Navigation Menu */
@@ -125,8 +119,8 @@
 }
 
 .nav-item.active {
-  background: #eff6ff;
-  color: #2563eb;
+  background: #2563eb;
+  color: white;
   font-weight: 600;
 }
 
@@ -170,10 +164,10 @@
 }
 
 .user-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #32cd32 0%, #228b22 100%);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
   color: white;
   display: flex;
   align-items: center;
@@ -437,10 +431,6 @@
     padding: 0.625rem 0.75rem;
   }
 
-  .header-logo-img {
-    height: 35px;
-  }
-
   .btn-new-application {
     padding: 0.5rem 0.75rem;
     font-size: 0.75rem;
@@ -458,10 +448,6 @@
 
   .layout-header {
     padding: 0.5rem 0.625rem;
-  }
-
-  .header-logo-img {
-    height: 32px;
   }
 
   .layout-main {
@@ -503,3 +489,4 @@
 .layout-sidebar::-webkit-scrollbar-thumb:hover {
   background: #9ca3af;
 }
+

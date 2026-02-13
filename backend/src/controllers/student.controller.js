@@ -316,22 +316,48 @@ const uploadDocuments = async (req, res) => {
       return sendError(res, 'No files uploaded', 400);
     }
 
-    const documents = req.files.map(file => {
-      let fileType = 'pdf';
-      if (file.mimetype.startsWith('image/')) {
-        fileType = 'image';
-      } else if (file.mimetype.startsWith('video/')) {
-        fileType = 'video';
-      }
+    // Import S3 service and upload middleware helpers
+    const { uploadToS3 } = require('../services/s3.service');
+    const { getFileType } = require('../middlewares/upload.middleware');
 
-      return {
-        fileId: uuidv4(), // Generate UUID for secure file access
-        filename: file.filename,
-        originalName: file.originalname,
-        path: file.path,
-        fileType
-      };
-    });
+    // Upload each file to S3 and create document metadata
+    const documents = await Promise.all(
+      req.files.map(async (file) => {
+        // Determine file type
+        const fileType = getFileType(file.mimetype);
+        if (!fileType) {
+          throw new Error(`Invalid file type: ${file.originalname}`);
+        }
+
+        // Validate file size (max 20MB)
+        const maxSize = 20 * 1024 * 1024;
+        if (file.size > maxSize) {
+          throw new Error(`File ${file.originalname} exceeds maximum size of 20MB`);
+        }
+
+        // Generate file ID
+        const fileId = uuidv4();
+
+        // Upload to S3
+        const { s3Key, s3Url, fileName } = await uploadToS3(
+          file.buffer,
+          file.originalname,
+          fileType,
+          file.mimetype
+        );
+
+        // Return document metadata (stored in MongoDB, not the file)
+        return {
+          fileId,
+          filename: fileName,
+          originalName: file.originalname,
+          s3Key,
+          s3Url,
+          fileType,
+          url: s3Url, // For backward compatibility
+        };
+      })
+    );
 
     student.documents.push(...documents);
     await student.save();
@@ -344,7 +370,10 @@ const uploadDocuments = async (req, res) => {
       action: 'UPLOAD_DOCUMENT',
       targetId: student._id,
       targetModel: 'Student',
-      metadata: { fileCount: documents.length },
+      metadata: { 
+        fileCount: documents.length,
+        fileIds: documents.map(doc => doc.fileId),
+      },
       ipAddress: getClientIp(req),
       userAgent: req.get('user-agent')
     });

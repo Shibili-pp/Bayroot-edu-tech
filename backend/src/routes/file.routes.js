@@ -4,17 +4,22 @@ const fileController = require('../controllers/file.controller');
 const verifyToken = require('../middlewares/auth.middleware');
 const { authorize } = require('../middlewares/role.middleware');
 const { downloadRateLimiter, generalRateLimiter } = require('../middlewares/rateLimit.middleware');
-const { checkDownloadLimit } = require('../middlewares/downloadLimit.middleware');
-const upload = require('../middlewares/upload.middleware');
+const { upload } = require('../middlewares/upload.middleware');
 
 // All file routes require authentication
 router.use(verifyToken);
 
-// Upload file endpoint (before student creation)
+// Upload file endpoint - uploads to S3 and saves metadata to MongoDB
 router.post('/upload', generalRateLimiter, authorize('PARTNER', 'ADMIN'), upload.single('file'), fileController.uploadFile);
 
-// Download file endpoint (with download limit for Partners)
-router.get('/:fileId', downloadRateLimiter, authorize('PARTNER', 'ADMIN'), checkDownloadLimit, fileController.downloadFile);
+// Get file metadata by fileId
+router.get('/:fileId', generalRateLimiter, authorize('PARTNER', 'ADMIN'), fileController.getFileMetadata);
+
+// List files (with optional filtering)
+router.get('/', generalRateLimiter, authorize('PARTNER', 'ADMIN'), fileController.listFiles);
+
+// Delete file from S3 and MongoDB
+router.delete('/:fileId', generalRateLimiter, authorize('PARTNER', 'ADMIN'), fileController.deleteFile);
 
 module.exports = router;
 

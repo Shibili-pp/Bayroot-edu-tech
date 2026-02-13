@@ -1,91 +1,12 @@
-const Student = require('../models/Student.model');
-const fs = require('fs');
-const path = require('path');
+const File = require('../models/File.model');
 const { sendSuccess, sendError } = require('../utils/response.util');
 const { logAudit, getClientIp } = require('../utils/audit.util');
+const { uploadToS3, deleteFromS3, fileExistsInS3 } = require('../services/s3.service');
+const { getFileType } = require('../middlewares/upload.middleware');
+const { v4: uuidv4 } = require('uuid');
 
 /**
- * Secure file download
- * GET /api/files/:fileId
- */
-const downloadFile = async (req, res) => {
-  try {
-    const { fileId } = req.params;
-    const userId = req.user.userId || req.user.id;
-    const role = req.user.role;
-
-    // Find student that owns this file (exclude deleted)
-    const student = await Student.findOne({
-      'documents.fileId': fileId,
-      isDeleted: false
-    });
-
-    if (!student) {
-      return sendError(res, 'File not found', 404);
-    }
-
-    // Check access permissions
-    if (role === 'PARTNER' && student.partnerId.toString() !== userId) {
-      return sendError(res, 'Access denied. You can only access files for your own students.', 403);
-    }
-
-    // Find the document
-    const document = student.documents.find(doc => doc.fileId === fileId);
-    if (!document) {
-      return sendError(res, 'File not found', 404);
-    }
-
-    // Check if file exists
-    const filePath = path.join(__dirname, '../../', document.path);
-    if (!fs.existsSync(filePath)) {
-      return sendError(res, 'File not found on server', 404);
-    }
-
-    // Prepare watermark metadata (for future PDF/image processing)
-    const watermarkMetadata = {
-      downloadedVia: 'Bayroot Edu Tech',
-      partnerId: role === 'PARTNER' ? userId : student.partnerId.toString(),
-      timestamp: new Date().toISOString(),
-      fileId: fileId
-    };
-
-    // Log audit with watermark metadata
-    await logAudit({
-      userId,
-      userModel: role === 'ADMIN' ? 'Admin' : 'Partner',
-      role,
-      action: 'DOWNLOAD_FILE',
-      targetId: student._id,
-      targetModel: 'Student',
-      metadata: { 
-        fileId, 
-        filename: document.originalName,
-        watermark: watermarkMetadata,
-        dailyCount: req.downloadInfo?.dailyCount,
-        limit: req.downloadInfo?.limit
-      },
-      ipAddress: getClientIp(req),
-      userAgent: req.get('user-agent')
-    });
-
-    // Stream file securely
-    // NOTE: Actual watermark embedding (PDF/image processing) can be added here in future
-    // For now, metadata is logged for tracking purposes
-    res.setHeader('Content-Disposition', `attachment; filename="${document.originalName}"`);
-    res.setHeader('Content-Type', getContentType(document.fileType));
-    
-    // Add custom header with watermark metadata (for tracking)
-    res.setHeader('X-Download-Metadata', JSON.stringify(watermarkMetadata));
-
-    const fileStream = fs.createReadStream(filePath);
-    fileStream.pipe(res);
-  } catch (error) {
-    return sendError(res, error.message, 500);
-  }
-};
-
-/**
- * Upload file (for use before student creation)
+ * Upload file to S3 and save metadata to MongoDB
  * POST /api/files/upload
  */
 const uploadFile = async (req, res) => {
@@ -98,27 +19,50 @@ const uploadFile = async (req, res) => {
     const role = req.user.role;
 
     // Determine file type
-    let fileType = 'pdf';
-    if (req.file.mimetype.startsWith('image/')) {
-      fileType = 'image';
-    } else if (req.file.mimetype.startsWith('video/')) {
-      fileType = 'video';
+    const fileType = getFileType(req.file.mimetype);
+    if (!fileType) {
+      return sendError(res, 'Invalid file type', 400);
+    }
+
+    // Validate file size (already validated by multer, but double-check)
+    const maxSize = 20 * 1024 * 1024; // 20MB
+    if (req.file.size > maxSize) {
+      return sendError(res, 'File size exceeds maximum limit of 20MB', 400);
     }
 
     // Generate file ID
-    const { v4: uuidv4 } = require('uuid');
     const fileId = uuidv4();
 
-    // Create file metadata
-    const fileMetadata = {
-      fileId: fileId,
-      filename: req.file.filename,
+    // Upload to S3
+    const { s3Key, s3Url, fileName } = await uploadToS3(
+      req.file.buffer,
+      req.file.originalname,
+      fileType,
+      req.file.mimetype
+    );
+
+    // Save file metadata to MongoDB
+    const fileDocument = new File({
+      fileId,
       originalName: req.file.originalname,
-      path: req.file.path,
-      fileType: fileType,
-      url: `/api/files/${fileId}`, // URL to access the file
-      uploadedAt: new Date()
-    };
+      fileName,
+      fileType,
+      mimeType: req.file.mimetype,
+      fileSize: req.file.size,
+      s3Key,
+      s3Url,
+      uploadedBy: {
+        userId,
+        role,
+      },
+      metadata: {
+        uploadedAt: new Date().toISOString(),
+        ipAddress: getClientIp(req),
+        userAgent: req.get('user-agent'),
+      },
+    });
+
+    await fileDocument.save();
 
     // Log audit
     await logAudit({
@@ -126,34 +70,190 @@ const uploadFile = async (req, res) => {
       userModel: role === 'ADMIN' ? 'Admin' : 'Partner',
       role,
       action: 'UPLOAD_FILE',
-      metadata: { 
-        fileId, 
-        filename: req.file.originalname,
-        fileType: fileType
+      targetId: fileDocument._id,
+      targetModel: 'File',
+      metadata: {
+        fileId,
+        fileName,
+        fileType,
+        s3Key,
+        originalName: req.file.originalname,
+        fileSize: req.file.size,
       },
       ipAddress: getClientIp(req),
-      userAgent: req.get('user-agent')
+      userAgent: req.get('user-agent'),
     });
 
-    return sendSuccess(res, { file: fileMetadata }, 'File uploaded successfully');
+    return sendSuccess(
+      res,
+      {
+        file: {
+          fileId: fileDocument.fileId,
+          originalName: fileDocument.originalName,
+          fileName: fileDocument.fileName,
+          fileType: fileDocument.fileType,
+          fileSize: fileDocument.fileSize,
+          s3Url: fileDocument.s3Url,
+          uploadedAt: fileDocument.createdAt,
+        },
+      },
+      'File uploaded successfully'
+    );
   } catch (error) {
-    return sendError(res, error.message, 500);
+    console.error('File upload error:', error);
+    return sendError(res, error.message || 'File upload failed', 500);
   }
 };
 
 /**
- * Get content type based on file type
+ * Get file metadata by fileId
+ * GET /api/files/:fileId
  */
-const getContentType = (fileType) => {
-  const contentTypes = {
-    image: 'image/jpeg',
-    video: 'video/mp4',
-    pdf: 'application/pdf'
-  };
-  return contentTypes[fileType] || 'application/octet-stream';
+const getFileMetadata = async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const userId = req.user.userId || req.user.id;
+    const role = req.user.role;
+
+    // Find file in MongoDB
+    const file = await File.findByFileId(fileId);
+    if (!file) {
+      return sendError(res, 'File not found', 404);
+    }
+
+    // Check access permissions
+    if (role === 'PARTNER' && file.uploadedBy.userId.toString() !== userId) {
+      return sendError(res, 'Access denied. You can only access files you uploaded.', 403);
+    }
+
+    // Verify file still exists in S3
+    const existsInS3 = await fileExistsInS3(file.s3Key);
+    if (!existsInS3) {
+      return sendError(res, 'File not found in storage', 404);
+    }
+
+    return sendSuccess(res, {
+      file: {
+        fileId: file.fileId,
+        originalName: file.originalName,
+        fileName: file.fileName,
+        fileType: file.fileType,
+        fileSize: file.fileSize,
+        s3Url: file.s3Url,
+        uploadedBy: file.uploadedBy,
+        uploadedAt: file.createdAt,
+      },
+    });
+  } catch (error) {
+    console.error('Get file metadata error:', error);
+    return sendError(res, error.message || 'Failed to retrieve file', 500);
+  }
+};
+
+/**
+ * Delete file from S3 and MongoDB
+ * DELETE /api/files/:fileId
+ */
+const deleteFile = async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const userId = req.user.userId || req.user.id;
+    const role = req.user.role;
+
+    // Find file in MongoDB
+    const file = await File.findByFileId(fileId);
+    if (!file) {
+      return sendError(res, 'File not found', 404);
+    }
+
+    // Check access permissions
+    if (role === 'PARTNER' && file.uploadedBy.userId.toString() !== userId) {
+      return sendError(res, 'Access denied. You can only delete files you uploaded.', 403);
+    }
+
+    // Delete from S3
+    try {
+      await deleteFromS3(file.s3Key);
+    } catch (s3Error) {
+      console.error('S3 delete error:', s3Error);
+      // Continue with MongoDB deletion even if S3 delete fails
+    }
+
+    // Delete from MongoDB
+    await File.findByIdAndDelete(file._id);
+
+    // Log audit
+    await logAudit({
+      userId,
+      userModel: role === 'ADMIN' ? 'Admin' : 'Partner',
+      role,
+      action: 'DELETE_FILE',
+      targetId: file._id,
+      targetModel: 'File',
+      metadata: {
+        fileId,
+        fileName: file.fileName,
+        s3Key: file.s3Key,
+      },
+      ipAddress: getClientIp(req),
+      userAgent: req.get('user-agent'),
+    });
+
+    return sendSuccess(res, null, 'File deleted successfully');
+  } catch (error) {
+    console.error('Delete file error:', error);
+    return sendError(res, error.message || 'Failed to delete file', 500);
+  }
+};
+
+/**
+ * List files uploaded by user
+ * GET /api/files
+ */
+const listFiles = async (req, res) => {
+  try {
+    const userId = req.user.userId || req.user.id;
+    const role = req.user.role;
+    const { fileType, page = 1, limit = 20 } = req.query;
+
+    // Build query
+    const query = {};
+    if (role === 'PARTNER') {
+      query['uploadedBy.userId'] = userId;
+    }
+    if (fileType && ['image', 'video', 'pdf'].includes(fileType)) {
+      query.fileType = fileType;
+    }
+
+    // Pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const files = await File.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .select('fileId originalName fileName fileType fileSize s3Url uploadedBy createdAt')
+      .lean();
+
+    const total = await File.countDocuments(query);
+
+    return sendSuccess(res, {
+      files,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit)),
+      },
+    });
+  } catch (error) {
+    console.error('List files error:', error);
+    return sendError(res, error.message || 'Failed to list files', 500);
+  }
 };
 
 module.exports = {
-  downloadFile,
-  uploadFile
+  uploadFile,
+  getFileMetadata,
+  deleteFile,
+  listFiles,
 };

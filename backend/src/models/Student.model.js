@@ -59,13 +59,15 @@ const studentSchema = new mongoose.Schema({
     },
     filename: String,
     originalName: String,
-    path: String,
+    path: String, // Deprecated: kept for backward compatibility
+    s3Key: String, // S3 object key
+    s3Url: String, // Full S3 URL
     fileType: {
       type: String,
       enum: ['image', 'video', 'pdf']
     },
     url: {
-      type: String
+      type: String // S3 URL (for backward compatibility, same as s3Url)
     },
     uploadedAt: {
       type: Date,

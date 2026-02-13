@@ -1,74 +1,81 @@
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
-const { v4: uuidv4 } = require('uuid');
 
-// Ensure upload directories exist
-const uploadDirs = {
-  images: 'uploads/images',
-  videos: 'uploads/videos',
-  pdfs: 'uploads/pdfs'
+/**
+ * File type validation
+ * Supported: Images (jpg, png, jpeg, webp), Videos (mp4), PDFs
+ */
+const allowedMimeTypes = {
+  images: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
+  videos: ['video/mp4'],
+  pdfs: ['application/pdf'],
 };
 
-Object.values(uploadDirs).forEach(dir => {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-});
+const allowedExtensions = {
+  images: /\.(jpg|jpeg|png|webp)$/i,
+  videos: /\.(mp4)$/i,
+  pdfs: /\.(pdf)$/i,
+};
 
-// Configure storage with UUID naming
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    let uploadPath = '';
-    
-    if (file.mimetype.startsWith('image/')) {
-      uploadPath = uploadDirs.images;
-    } else if (file.mimetype.startsWith('video/')) {
-      uploadPath = uploadDirs.videos;
-    } else if (file.mimetype === 'application/pdf') {
-      uploadPath = uploadDirs.pdfs;
-    } else {
-      return cb(new Error('Invalid file type. Only jpg, png, pdf, and mp4 are allowed.'));
-    }
-    
-    cb(null, uploadPath);
-  },
-  filename: (req, file, cb) => {
-    // Use UUID for secure file naming
-    const fileId = uuidv4();
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, fileId + ext);
-  }
-});
-
-// File filter - only allow: jpg, png, pdf, mp4
+/**
+ * File filter - validates file type
+ */
 const fileFilter = (req, file, cb) => {
-  const allowedExtensions = /\.(jpg|jpeg|png|pdf|mp4)$/i;
-  const extname = allowedExtensions.test(path.extname(file.originalname));
-  
-  const allowedMimeTypes = [
-    'image/jpeg',
-    'image/jpg',
-    'image/png',
-    'application/pdf',
-    'video/mp4'
-  ];
-  const mimetype = allowedMimeTypes.includes(file.mimetype);
+  const extname = path.extname(file.originalname).toLowerCase();
+  const mimetype = file.mimetype;
 
-  if (extname && mimetype) {
+  // Check if file type is allowed
+  const isValidImage = 
+    allowedMimeTypes.images.includes(mimetype) && 
+    allowedExtensions.images.test(extname);
+  
+  const isValidVideo = 
+    allowedMimeTypes.videos.includes(mimetype) && 
+    allowedExtensions.videos.test(extname);
+  
+  const isValidPdf = 
+    allowedMimeTypes.pdfs.includes(mimetype) && 
+    allowedExtensions.pdfs.test(extname);
+
+  if (isValidImage || isValidVideo || isValidPdf) {
     return cb(null, true);
   } else {
-    cb(new Error('Invalid file type. Only jpg, png, pdf, and mp4 files are allowed.'));
+    cb(new Error(
+      'Invalid file type. Only images (jpg, png, jpeg, webp), videos (mp4), and PDFs are allowed.'
+    ));
   }
 };
 
+/**
+ * Multer configuration with memoryStorage
+ * Files are stored in memory before uploading to S3
+ */
 const upload = multer({
-  storage: storage,
+  storage: multer.memoryStorage(),
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
+    fileSize: 20 * 1024 * 1024, // 20MB max file size
   },
-  fileFilter: fileFilter
+  fileFilter: fileFilter,
 });
 
-module.exports = upload;
+/**
+ * Helper function to determine file type from mimetype
+ * @param {string} mimetype - File MIME type
+ * @returns {string} 'image', 'video', or 'pdf'
+ */
+const getFileType = (mimetype) => {
+  if (mimetype.startsWith('image/')) {
+    return 'image';
+  } else if (mimetype.startsWith('video/')) {
+    return 'video';
+  } else if (mimetype === 'application/pdf') {
+    return 'pdf';
+  }
+  return null;
+};
 
+module.exports = {
+  upload,
+  getFileType,
+  allowedMimeTypes,
+};

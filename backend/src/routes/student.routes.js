@@ -3,7 +3,7 @@ const router = express.Router();
 const studentController = require('../controllers/student.controller');
 const verifyToken = require('../middlewares/auth.middleware');
 const { authorize, checkAdmin } = require('../middlewares/role.middleware');
-const upload = require('../middlewares/upload.middleware');
+const { upload } = require('../middlewares/upload.middleware');
 const { generalRateLimiter } = require('../middlewares/rateLimit.middleware');
 const { parsePagination } = require('../middlewares/pagination.middleware');
 
