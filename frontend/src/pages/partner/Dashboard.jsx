@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import PartnerLayout from '../../components/layout/PartnerLayout';
+import DocumentUploadModal from '../../components/DocumentUploadModal';
 import api from '../../api/axios';
 import './Dashboard.css';
 
@@ -17,10 +18,19 @@ const Dashboard = () => {
   });
   const [actionItems, setActionItems] = useState([]);
   const [recentUpdates, setRecentUpdates] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [uploadModal, setUploadModal] = useState({
+    isOpen: false,
+    studentId: null,
+    studentName: '',
+    missingDocument: ''
+  });
 
   useEffect(() => {
     const fetchData = async () => {
+      let studentUpdates = [];
+      
       try {
         // Fetch all students (without pagination limit to get all)
         const studentsResponse = await api.get('/students?limit=1000');
@@ -54,35 +64,80 @@ const Dashboard = () => {
           });
 
           // Generate action items from students missing documents
+          // Helper function to detect missing documents (more lenient)
+          const detectMissingDocuments = (student) => {
+            const documents = student.documents || [];
+            const docCount = documents.length;
+            const missingDocs = [];
+            
+            // If student has 3+ documents, consider them complete (don't check specific types)
+            if (docCount >= 3) {
+              return [];
+            }
+            
+            // Only check for specific missing documents if student has less than 3 documents
+            // Check for Passport Copy - look for passport-related keywords
+            const hasPassport = documents.some(d => {
+              const name = (d.originalName || d.filename || d.url || '').toLowerCase();
+              return name.includes('passport') || name.includes('pass');
+            });
+            if (!hasPassport && docCount < 3) {
+              missingDocs.push('Passport Copy');
+            }
+            
+            // Check for IELTS Certificate
+            const hasIELTS = documents.some(d => {
+              const name = (d.originalName || d.filename || d.url || '').toLowerCase();
+              return name.includes('ielts') || name.includes('english') || name.includes('language');
+            });
+            if (!hasIELTS && docCount < 3) {
+              missingDocs.push('IELTS Certificate');
+            }
+            
+            // Check for Bank Statement
+            const hasBankStatement = documents.some(d => {
+              const name = (d.originalName || d.filename || d.url || '').toLowerCase();
+              return name.includes('bank') || name.includes('statement') || name.includes('financial');
+            });
+            if (!hasBankStatement && docCount < 3) {
+              missingDocs.push('Bank Statement');
+            }
+            
+            // Check for Visa Copy
+            const hasVisa = documents.some(d => {
+              const name = (d.originalName || d.filename || d.url || '').toLowerCase();
+              return name.includes('visa');
+            });
+            if (!hasVisa && docCount < 3) {
+              missingDocs.push('Visa Copy');
+            }
+            
+            return missingDocs;
+          };
+
           const studentsNeedingDocs = students
-            .filter(s => {
-              const docCount = s.documents?.length || 0;
-              return docCount < 3;
-            })
-            .slice(0, 4) // Show max 4 action items
-            .map((student, index) => {
+            .map((student) => {
               const docCount = student.documents?.length || 0;
               const createdDate = new Date(student.createdAt);
               const daysSinceCreation = Math.floor((Date.now() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
               
-              // Determine missing document type based on what's needed
-              const missingDocs = [];
-              if (!student.documents?.some(d => d.fileType === 'pdf')) {
-                missingDocs.push('Passport Copy');
-              }
-              if (!student.documents?.some(d => d.fileType === 'pdf' && d.originalName?.toLowerCase().includes('ielts'))) {
-                missingDocs.push('IELTS Certificate');
-              }
-              if (!student.documents?.some(d => d.fileType === 'pdf' && d.originalName?.toLowerCase().includes('bank'))) {
-                missingDocs.push('Bank Statement');
-              }
-              if (!student.documents?.some(d => d.fileType === 'pdf' && d.originalName?.toLowerCase().includes('visa'))) {
-                missingDocs.push('Visa Copy');
+              // If student has 3+ documents, skip them (they have enough documents)
+              if (docCount >= 3) {
+                return null;
               }
               
-              const actionText = missingDocs.length > 0 
-                ? `MISSING ${missingDocs[0]}` 
-                : 'MISSING Documents';
+              // Detect missing documents
+              const missingDocs = detectMissingDocuments(student);
+              
+              // Determine action text
+              let actionText = '';
+              if (docCount === 0) {
+                actionText = 'MISSING Documents';
+              } else if (missingDocs.length > 0) {
+                actionText = `MISSING ${missingDocs[0]}`;
+              } else {
+                actionText = `MISSING Documents (${3 - docCount} more needed)`;
+              }
               
               // Calculate deadline (7 days from creation, or urgent if less than 24 hours left)
               const deadlineDays = Math.max(0, 7 - daysSinceCreation);
@@ -98,17 +153,30 @@ const Dashboard = () => {
               }
 
               return {
-                id: student.id,
+                id: student._id || student.id,
                 name: student.fullName,
-                university: student.countryPreference,
-                course: student.coursePreference,
+                university: student.universityId?.name || student.countryPreference || 'N/A',
+                course: student.courseId?.name || student.coursePreference || 'N/A',
                 action: actionText,
                 deadline: deadlineText,
                 hours: hoursLeft,
                 avatar: student.fullName?.charAt(0)?.toUpperCase() || '👤',
-                studentId: student.id
+                studentId: student._id || student.id,
+                missingDocument: missingDocs.length > 0 ? missingDocs[0] : 'Documents',
+                docCount: docCount
               };
-            });
+            })
+            .filter(item => item !== null) // Remove null entries
+            .sort((a, b) => {
+              // Sort by urgency: overdue first, then by hours left, then by doc count (fewer docs first)
+              if (a.hours < 24 && b.hours >= 24) return -1;
+              if (a.hours >= 24 && b.hours < 24) return 1;
+              if (a.hours === b.hours) {
+                return a.docCount - b.docCount; // Fewer documents = higher priority
+              }
+              return a.hours - b.hours;
+            })
+            .slice(0, 4); // Show max 4 action items
 
           setActionItems(studentsNeedingDocs);
 
@@ -117,7 +185,7 @@ const Dashboard = () => {
             .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
             .slice(0, 4);
           
-          const updates = recentStudents.map((student, index) => {
+          studentUpdates = recentStudents.map((student, index) => {
             const createdDate = new Date(student.createdAt);
             const now = new Date();
             const diffMs = now - createdDate;
@@ -163,14 +231,88 @@ const Dashboard = () => {
               subtitle
             };
           });
+        }
 
-          setRecentUpdates(updates);
+        // Fetch announcements
+        try {
+          const announcementsResponse = await api.get('/announcements/visible?limit=10');
+          console.log('Announcements response:', announcementsResponse.data);
+          if (announcementsResponse.data.success) {
+            const fetchedAnnouncements = announcementsResponse.data.data?.announcements || [];
+            console.log('Fetched announcements:', fetchedAnnouncements);
+            
+            // Format announcements for display
+            const formattedAnnouncements = fetchedAnnouncements.map(announcement => {
+              const createdDate = new Date(announcement.createdAt);
+              const now = new Date();
+              const diffMs = now - createdDate;
+              const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+              const diffDays = Math.floor(diffHours / 24);
+              
+              let timeText = '';
+              if (diffHours < 1) {
+                timeText = 'Just now';
+              } else if (diffHours < 24) {
+                timeText = `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+              } else if (diffDays === 1) {
+                timeText = 'Yesterday';
+              } else if (diffDays < 7) {
+                timeText = `${diffDays} days ago`;
+              } else {
+                timeText = createdDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+              }
+
+              // Map category to display name and color
+              const categoryMap = {
+                reminder: { name: 'Reminder', color: '#3b82f6', type: 'info' },
+                urgent: { name: 'Urgent', color: '#f59e0b', type: 'warning' },
+                critical: { name: 'Critical', color: '#ef4444', type: 'error' }
+              };
+
+              const categoryInfo = categoryMap[announcement.category] || categoryMap.reminder;
+
+              return {
+                id: announcement._id,
+                time: timeText,
+                type: categoryInfo.type,
+                category: categoryInfo.name,
+                categoryColor: categoryInfo.color,
+                title: 'New Announcement',
+                subtitle: announcement.content.length > 60 
+                  ? announcement.content.substring(0, 60) + '...' 
+                  : announcement.content,
+                fullContent: announcement.content,
+                isAnnouncement: true
+              };
+            });
+
+            // Combine announcements with student updates and sort by time
+            const allUpdates = [...formattedAnnouncements, ...studentUpdates];
+            allUpdates.sort((a, b) => {
+              // Sort by time (most recent first)
+              // Announcements should appear first if same time
+              if (a.isAnnouncement && !b.isAnnouncement) return -1;
+              if (!a.isAnnouncement && b.isAnnouncement) return 1;
+              return 0;
+            });
+
+            setAnnouncements(formattedAnnouncements);
+            setRecentUpdates(allUpdates.slice(0, 10)); // Show max 10 updates
+          } else {
+            // If no announcements, just show student updates
+            setRecentUpdates(studentUpdates);
+          }
+        } catch (announcementError) {
+          console.error('Error fetching announcements:', announcementError);
+          // Continue with student updates only
+          setRecentUpdates(studentUpdates);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
         // Set empty states on error
         setActionItems([]);
         setRecentUpdates([]);
+        setAnnouncements([]);
       } finally {
         setLoading(false);
       }
@@ -186,9 +328,156 @@ const Dashboard = () => {
     return 'Good evening';
   };
 
-  const handleUploadClick = (studentId) => {
-    // Navigate to student detail page or open upload modal
-    window.location.href = `/partner/students/${studentId}`;
+  const handleUploadClick = (item) => {
+    // Open upload modal with student info
+    setUploadModal({
+      isOpen: true,
+      studentId: item.studentId,
+      studentName: item.name,
+      missingDocument: item.missingDocument || 'Document'
+    });
+  };
+
+  const handleUploadSuccess = async () => {
+    // Refresh data after successful upload without full page reload
+    setLoading(true);
+    try {
+      const studentsResponse = await api.get('/students?limit=1000');
+      if (studentsResponse.data.success) {
+        const students = studentsResponse.data.data?.students || [];
+        
+        // Recalculate action items with updated data (same logic as initial fetch)
+        const detectMissingDocuments = (student) => {
+          const documents = student.documents || [];
+          const docCount = documents.length;
+          const missingDocs = [];
+          
+          // If student has 3+ documents, consider them complete
+          if (docCount >= 3) {
+            return [];
+          }
+          
+          const hasPassport = documents.some(d => {
+            const name = (d.originalName || d.filename || d.url || '').toLowerCase();
+            return name.includes('passport') || name.includes('pass');
+          });
+          if (!hasPassport && docCount < 3) missingDocs.push('Passport Copy');
+          
+          const hasIELTS = documents.some(d => {
+            const name = (d.originalName || d.filename || d.url || '').toLowerCase();
+            return name.includes('ielts') || name.includes('english') || name.includes('language');
+          });
+          if (!hasIELTS && docCount < 3) missingDocs.push('IELTS Certificate');
+          
+          const hasBankStatement = documents.some(d => {
+            const name = (d.originalName || d.filename || d.url || '').toLowerCase();
+            return name.includes('bank') || name.includes('statement') || name.includes('financial');
+          });
+          if (!hasBankStatement && docCount < 3) missingDocs.push('Bank Statement');
+          
+          const hasVisa = documents.some(d => {
+            const name = (d.originalName || d.filename || d.url || '').toLowerCase();
+            return name.includes('visa');
+          });
+          if (!hasVisa && docCount < 3) missingDocs.push('Visa Copy');
+          
+          return missingDocs;
+        };
+
+        const studentsNeedingDocs = students
+          .map((student) => {
+            const docCount = student.documents?.length || 0;
+            
+            // If student has 3+ documents, skip them (they have enough documents)
+            if (docCount >= 3) {
+              return null;
+            }
+            
+            const createdDate = new Date(student.createdAt);
+            const daysSinceCreation = Math.floor((Date.now() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
+            const missingDocs = detectMissingDocuments(student);
+            
+            let actionText = '';
+            if (docCount === 0) {
+              actionText = 'MISSING Documents';
+            } else if (missingDocs.length > 0) {
+              actionText = `MISSING ${missingDocs[0]}`;
+            } else {
+              actionText = `MISSING Documents (${3 - docCount} more needed)`;
+            }
+            
+            const deadlineDays = Math.max(0, 7 - daysSinceCreation);
+            const hoursLeft = deadlineDays * 24;
+            
+            let deadlineText = '';
+            if (hoursLeft < 24) {
+              deadlineText = `${hoursLeft} hours left`;
+            } else if (deadlineDays === 0) {
+              deadlineText = 'Overdue';
+            } else {
+              deadlineText = `${deadlineDays} day${deadlineDays > 1 ? 's' : ''} left`;
+            }
+
+            return {
+              id: student._id || student.id,
+              name: student.fullName,
+              university: student.universityId?.name || student.countryPreference || 'N/A',
+              course: student.courseId?.name || student.coursePreference || 'N/A',
+              action: actionText,
+              deadline: deadlineText,
+              hours: hoursLeft,
+              avatar: student.fullName?.charAt(0)?.toUpperCase() || '👤',
+              studentId: student._id || student.id,
+              missingDocument: missingDocs.length > 0 ? missingDocs[0] : 'Documents',
+              docCount: docCount
+            };
+          })
+          .filter(item => item !== null)
+          .sort((a, b) => {
+            if (a.hours < 24 && b.hours >= 24) return -1;
+            if (a.hours >= 24 && b.hours < 24) return 1;
+            if (a.hours === b.hours) {
+              return a.docCount - b.docCount;
+            }
+            return a.hours - b.hours;
+          })
+          .slice(0, 4);
+
+        setActionItems(studentsNeedingDocs);
+        
+        // Update stats
+        const totalStudents = students.length;
+        const inProgress = students.filter(s => s.documents && s.documents.length > 0).length;
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const pendingDocs = students.filter(s => {
+          const docCount = s.documents?.length || 0;
+          const createdDate = new Date(s.createdAt);
+          return docCount < 3 || (docCount === 0 && createdDate < sevenDaysAgo);
+        }).length;
+        const offersReceived = students.filter(s => s.documents && s.documents.length >= 3).length;
+        
+        setStats({
+          totalStudents,
+          inProgress,
+          pendingDocs,
+          offersReceived
+        });
+      }
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCloseUploadModal = () => {
+    setUploadModal({
+      isOpen: false,
+      studentId: null,
+      studentName: '',
+      missingDocument: ''
+    });
   };
 
   return (
@@ -268,13 +557,24 @@ const Dashboard = () => {
                           </span>
                         </div>
                       </div>
-                      <button 
-                        className="upload-btn" 
-                        aria-label="Upload document"
-                        onClick={() => handleUploadClick(item.studentId)}
-                      >
-                        📤
-                      </button>
+                      <div className="action-buttons">
+                        <button 
+                          className="upload-btn" 
+                          aria-label="Upload document"
+                          onClick={() => handleUploadClick(item)}
+                          title="Upload Document"
+                        >
+                          📤
+                        </button>
+                        <button 
+                          className="edit-btn" 
+                          aria-label="Edit/Add document"
+                          onClick={() => handleUploadClick(item)}
+                          title="Edit/Add Document"
+                        >
+                          ✏️
+                        </button>
+                      </div>
                     </div>
                   ))
                 ) : (
@@ -295,10 +595,26 @@ const Dashboard = () => {
               <div className="updates-list">
                 {recentUpdates.length > 0 ? (
                   recentUpdates.map((update, index) => (
-                    <div key={index} className="update-item">
-                      <div className={`update-dot ${update.type}`}></div>
+                    <div key={update.id || index} className="update-item">
+                      <div 
+                        className={`update-dot ${update.type}`}
+                        style={update.categoryColor ? { backgroundColor: update.categoryColor } : {}}
+                      ></div>
                       <div className="update-content">
-                        <div className="update-time">{update.time}</div>
+                        <div className="update-header">
+                          <div className="update-time">{update.time}</div>
+                          {update.category && (
+                            <span 
+                              className="update-category"
+                              style={{ 
+                                color: update.categoryColor,
+                                backgroundColor: `${update.categoryColor}15`
+                              }}
+                            >
+                              {update.category}
+                            </span>
+                          )}
+                        </div>
                         <div className="update-text">{update.title}</div>
                         <div className="update-subtext">{update.subtitle}</div>
                       </div>
@@ -325,6 +641,16 @@ const Dashboard = () => {
           </aside>
         </div>
       </div>
+
+      {/* Document Upload Modal */}
+      <DocumentUploadModal
+        isOpen={uploadModal.isOpen}
+        onClose={handleCloseUploadModal}
+        studentId={uploadModal.studentId}
+        studentName={uploadModal.studentName}
+        missingDocument={uploadModal.missingDocument}
+        onSuccess={handleUploadSuccess}
+      />
     </PartnerLayout>
   );
 };

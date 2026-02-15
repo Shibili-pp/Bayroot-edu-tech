@@ -25,7 +25,21 @@ const auditLogSchema = new mongoose.Schema({
       'UPDATE_STUDENT',
       'DELETE_STUDENT',
       'UPLOAD_DOCUMENT',
+      'UPLOAD_FILE',
       'DOWNLOAD_FILE',
+      'DELETE_FILE',
+      'CREATE_ANNOUNCEMENT',
+      'UPDATE_ANNOUNCEMENT',
+      'DELETE_ANNOUNCEMENT',
+      'CREATE_UNIVERSITY',
+      'UPDATE_UNIVERSITY',
+      'DELETE_UNIVERSITY',
+      'CREATE_COUNTRY',
+      'UPDATE_COUNTRY',
+      'DELETE_COUNTRY',
+      'CREATE_COURSE',
+      'UPDATE_COURSE',
+      'DELETE_COURSE',
       'LOGIN',
       'LOGOUT'
     ]
@@ -36,7 +50,7 @@ const auditLogSchema = new mongoose.Schema({
   },
   targetModel: {
     type: String,
-    enum: ['Student', 'File']
+    enum: ['Student', 'File', 'Announcement', 'University', 'Country', 'Course']
   },
   metadata: {
     type: mongoose.Schema.Types.Mixed,

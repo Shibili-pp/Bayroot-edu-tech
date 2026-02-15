@@ -9,12 +9,16 @@ const NewApplicationModal = ({ isOpen, onClose, onSuccess }) => {
     phone: '',
     passportNumber: '',
     aadharNumber: '',
+    countryId: '',
     courseId: '',
     universityId: '',
     documents: []
   });
+  const [countries, setCountries] = useState([]);
   const [courses, setCourses] = useState([]);
   const [universities, setUniversities] = useState([]);
+  const [filteredCourses, setFilteredCourses] = useState([]);
+  const [filteredUniversities, setFilteredUniversities] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -23,10 +27,52 @@ const NewApplicationModal = ({ isOpen, onClose, onSuccess }) => {
 
   useEffect(() => {
     if (isOpen) {
+      fetchCountries();
       fetchCourses();
       fetchUniversities();
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (formData.countryId) {
+      // Filter courses and universities by selected country
+      const country = countries.find(c => c._id === formData.countryId);
+      if (country) {
+        // Filter courses by countryId (can be ObjectId or populated object)
+        const filteredCoursesList = courses.filter(c => {
+          if (!c.isActive) return false;
+          const courseCountryId = c.countryId?._id || c.countryId;
+          return courseCountryId === formData.countryId || courseCountryId?.toString() === formData.countryId;
+        });
+        // Filter universities by country name
+        const filteredUniversitiesList = universities.filter(u => 
+          u.isActive && u.country === country.name
+        );
+        setFilteredCourses(filteredCoursesList);
+        setFilteredUniversities(filteredUniversitiesList);
+      } else {
+        setFilteredCourses([]);
+        setFilteredUniversities([]);
+      }
+      // Reset course and university selections when country changes
+      setFormData(prev => ({ ...prev, courseId: '', universityId: '' }));
+    } else {
+      setFilteredCourses([]);
+      setFilteredUniversities([]);
+    }
+  }, [formData.countryId, countries, courses, universities]);
+
+  const fetchCountries = async () => {
+    try {
+      const response = await api.get('/countries');
+      if (response.data.success) {
+        const activeCountries = (response.data.data?.countries || []).filter(c => c.isActive);
+        setCountries(activeCountries);
+      }
+    } catch (err) {
+      console.error('Error fetching countries:', err);
+    }
+  };
 
   const fetchCourses = async () => {
     try {
@@ -165,7 +211,7 @@ const NewApplicationModal = ({ isOpen, onClose, onSuccess }) => {
     setError('');
 
     // Validation
-    if (!formData.fullName || !formData.email || !formData.phone || !formData.aadharNumber || !formData.courseId || !formData.universityId) {
+    if (!formData.fullName || !formData.email || !formData.phone || !formData.aadharNumber || !formData.countryId || !formData.courseId || !formData.universityId) {
       setError('Please fill in all required fields');
       return;
     }
@@ -233,6 +279,7 @@ const NewApplicationModal = ({ isOpen, onClose, onSuccess }) => {
           phone: '',
           passportNumber: '',
           aadharNumber: '',
+          countryId: '',
           courseId: '',
           universityId: '',
           documents: []
@@ -243,7 +290,20 @@ const NewApplicationModal = ({ isOpen, onClose, onSuccess }) => {
         setError(response.data.message || 'Failed to create application');
       }
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to create application');
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to create application';
+      
+      // Handle duplicate Aadhar/Passport errors
+      if (errorMessage === 'DUPLICATE_AADHAR' || errorMessage.includes('DUPLICATE_AADHAR')) {
+        alert('⚠️ Duplicate Aadhar Number\n\nThe same Aadhar number has already been submitted to this portal. Please contact Bayroot Edu Connect help desk for assistance.');
+        setError('This Aadhar number has already been submitted. Please contact Bayroot Edu Connect help desk.');
+        return;
+      } else if (errorMessage === 'DUPLICATE_PASSPORT' || errorMessage.includes('DUPLICATE_PASSPORT')) {
+        alert('⚠️ Duplicate Passport Number\n\nThe same Passport number has already been submitted to this portal. Please contact Bayroot Edu Connect help desk for assistance.');
+        setError('This Passport number has already been submitted. Please contact Bayroot Edu Connect help desk.');
+        return;
+      }
+      
+      setError(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -257,6 +317,7 @@ const NewApplicationModal = ({ isOpen, onClose, onSuccess }) => {
         phone: '',
         passportNumber: '',
         aadharNumber: '',
+        countryId: '',
         courseId: '',
         universityId: '',
         documents: []
@@ -366,6 +427,27 @@ const NewApplicationModal = ({ isOpen, onClose, onSuccess }) => {
             </div>
           </div>
 
+          <div className="form-group">
+            <label htmlFor="countryId">
+              Country <span className="required">*</span>
+            </label>
+            <select
+              id="countryId"
+              name="countryId"
+              value={formData.countryId}
+              onChange={handleChange}
+              required
+              disabled={submitting || loading}
+            >
+              <option value="">Select Country</option>
+              {countries.map(country => (
+                <option key={country._id} value={country._id}>
+                  {country.name} {country.code && `(${country.code})`}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="form-row">
             <div className="form-group">
               <label htmlFor="courseId">
@@ -377,10 +459,16 @@ const NewApplicationModal = ({ isOpen, onClose, onSuccess }) => {
                 value={formData.courseId}
                 onChange={handleChange}
                 required
-                disabled={submitting || loading}
+                disabled={submitting || loading || !formData.countryId || filteredCourses.length === 0}
               >
-                <option value="">Select Course</option>
-                {courses.map(course => (
+                <option value="">
+                  {!formData.countryId 
+                    ? 'Select a country first' 
+                    : filteredCourses.length === 0 
+                    ? 'No courses available for this country'
+                    : 'Select Course'}
+                </option>
+                {filteredCourses.map(course => (
                   <option key={course._id} value={course._id}>
                     {course.name}
                   </option>
@@ -398,12 +486,18 @@ const NewApplicationModal = ({ isOpen, onClose, onSuccess }) => {
                 value={formData.universityId}
                 onChange={handleChange}
                 required
-                disabled={submitting || loading}
+                disabled={submitting || loading || !formData.countryId || filteredUniversities.length === 0}
               >
-                <option value="">Select University</option>
-                {universities.map(university => (
+                <option value="">
+                  {!formData.countryId 
+                    ? 'Select a country first' 
+                    : filteredUniversities.length === 0 
+                    ? 'No universities available for this country'
+                    : 'Select University'}
+                </option>
+                {filteredUniversities.map(university => (
                   <option key={university._id} value={university._id}>
-                    {university.name} - {university.country}
+                    {university.name}
                   </option>
                 ))}
               </select>

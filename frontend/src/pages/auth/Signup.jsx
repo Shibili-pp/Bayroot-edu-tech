@@ -67,7 +67,13 @@ const Signup = () => {
         ? '/admin/send-signup-otp' 
         : '/partner/send-signup-otp';
       
-      const response = await api.post(endpoint, { email });
+      // Send both email and mobileNumber (if available) to check for duplicates
+      const payload = { email };
+      if (mobileNumber) {
+        payload.mobileNumber = mobileNumber;
+      }
+      
+      const response = await api.post(endpoint, payload);
 
       if (response.data.success) {
         setOtpSent(true);

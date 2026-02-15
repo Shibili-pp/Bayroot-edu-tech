@@ -1,4 +1,5 @@
 const Admin = require('../models/Admin.model');
+const Partner = require('../models/Partner.model');
 const jwt = require('jsonwebtoken');
 const { JWT_SECRET } = require('../config/env');
 const { sendSuccess, sendError } = require('../utils/response.util');
@@ -6,20 +7,30 @@ const { logAudit, getClientIp } = require('../utils/audit.util');
 const { recordFailedAttempt, resetFailedAttempts } = require('../middlewares/accountLockout.middleware');
 const { blacklistToken } = require('../middlewares/tokenBlacklist.middleware');
 const { sendOTP, verifyOTP, isOTPVerified } = require('../utils/otp.util');
+const { checkDuplicates } = require('../utils/duplicateCheck.util');
 
 // Send OTP for Admin signup
 const sendSignupOTP = async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, mobileNumber } = req.body;
 
     if (!email) {
       return sendError(res, 'Email is required', 400);
     }
 
-    // Check if admin already exists
-    const existingAdmin = await Admin.findOne({ email });
-    if (existingAdmin) {
-      return sendError(res, 'Admin with this email already exists', 400);
+    // Check for duplicates in both Admin and Partner models
+    const duplicates = await checkDuplicates(email, mobileNumber);
+
+    // Check email duplicates
+    if (duplicates.emailExists.exists) {
+      const modelType = duplicates.emailExists.model === 'Admin' ? 'Admin' : 'Partner';
+      return sendError(res, `An account with this email already exists as a ${modelType}. Please use a different email.`, 400);
+    }
+
+    // Check mobile number duplicates
+    if (mobileNumber && duplicates.mobileExists.exists) {
+      const modelType = duplicates.mobileExists.model === 'Admin' ? 'Admin' : 'Partner';
+      return sendError(res, `An account with this mobile number already exists as a ${modelType}. Please use a different mobile number.`, 400);
     }
 
     // Send OTP
@@ -50,10 +61,19 @@ const register = async (req, res) => {
       return sendError(res, otpVerification.message || 'Invalid or expired OTP', 400);
     }
 
-    // Check if admin already exists
-    const existingAdmin = await Admin.findOne({ email });
-    if (existingAdmin) {
-      return sendError(res, 'Admin with this email already exists', 400);
+    // Check for duplicates in both Admin and Partner models (double-check before registration)
+    const duplicates = await checkDuplicates(email, mobileNumber);
+
+    // Check email duplicates
+    if (duplicates.emailExists.exists) {
+      const modelType = duplicates.emailExists.model === 'Admin' ? 'Admin' : 'Partner';
+      return sendError(res, `An account with this email already exists as a ${modelType}. Please use a different email.`, 400);
+    }
+
+    // Check mobile number duplicates
+    if (duplicates.mobileExists.exists) {
+      const modelType = duplicates.mobileExists.model === 'Admin' ? 'Admin' : 'Partner';
+      return sendError(res, `An account with this mobile number already exists as a ${modelType}. Please use a different mobile number.`, 400);
     }
 
     const admin = new Admin({ name, email, mobileNumber, password });
@@ -260,6 +280,27 @@ const resetPassword = async (req, res) => {
   }
 };
 
+// Get all partners (Admin only)
+const getAllPartners = async (req, res) => {
+  try {
+    const role = req.user.role;
+
+    if (role !== 'ADMIN') {
+      return sendError(res, 'Access denied', 403);
+    }
+
+    const partners = await Partner.find({ isActive: true })
+      .select('_id companyName email')
+      .sort({ companyName: 1 })
+      .lean();
+
+    return sendSuccess(res, { partners });
+  } catch (error) {
+    console.error('Get partners error:', error);
+    return sendError(res, error.message || 'Failed to get partners', 500);
+  }
+};
+
 module.exports = {
   sendSignupOTP,
   register,
@@ -267,6 +308,7 @@ module.exports = {
   logout,
   getProfile,
   sendForgotPasswordOTP,
-  resetPassword
+  resetPassword,
+  getAllPartners
 };
 

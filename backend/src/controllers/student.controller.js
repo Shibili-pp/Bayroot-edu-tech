@@ -4,6 +4,7 @@ const University = require('../models/University.model');
 const { sendSuccess, sendError } = require('../utils/response.util');
 const { formatStudentResponse } = require('../utils/studentResponse.util');
 const { logAudit, getClientIp } = require('../utils/audit.util');
+const { decrypt } = require('../utils/encryption.util');
 const { v4: uuidv4 } = require('uuid');
 
 // Create Student
@@ -34,6 +35,26 @@ const createStudent = async (req, res) => {
     const university = await University.findById(universityId);
     if (!university || !university.isActive) {
       return sendError(res, 'Invalid or inactive university', 400);
+    }
+
+    // Check for duplicate Aadhar Number
+    const allStudents = await Student.find({ isDeleted: false }).select('aadharNumber passportNumber');
+    const normalizedAadhar = aadharNumber.replace(/\s/g, '').toUpperCase();
+    
+    for (const existingStudent of allStudents) {
+      const existingAadhar = decrypt(existingStudent.aadharNumber);
+      if (existingAadhar && existingAadhar.replace(/\s/g, '').toUpperCase() === normalizedAadhar) {
+        return sendError(res, 'DUPLICATE_AADHAR', 400);
+      }
+      
+      // Check for duplicate Passport Number if provided
+      if (passportNumber && existingStudent.passportNumber) {
+        const existingPassport = decrypt(existingStudent.passportNumber);
+        const normalizedPassport = passportNumber.trim().toUpperCase();
+        if (existingPassport && existingPassport.trim().toUpperCase() === normalizedPassport) {
+          return sendError(res, 'DUPLICATE_PASSPORT', 400);
+        }
+      }
     }
 
     // Process documents (can be URLs or file uploads)
@@ -215,7 +236,7 @@ const updateStudent = async (req, res) => {
       return sendError(res, 'Student not found', 404);
     }
 
-    const { fullName, email, phone, passportNumber, aadharNumber, courseId, universityId, documents } = req.body;
+    const { fullName, email, phone, passportNumber, aadharNumber, courseId, universityId, documents, status } = req.body;
     
     // Update fields (encryption handled by model hooks)
     if (fullName !== undefined) student.fullName = fullName;
@@ -223,6 +244,27 @@ const updateStudent = async (req, res) => {
     if (phone !== undefined) student.phone = phone;
     if (passportNumber !== undefined) student.passportNumber = passportNumber || null;
     if (aadharNumber !== undefined) student.aadharNumber = aadharNumber;
+    if (status !== undefined) {
+      // Validate status
+      const validStatuses = [
+        'Under review',
+        'Offer requested',
+        'Offer received',
+        'Application moved',
+        'Ministry submitted',
+        'Ministry approved',
+        'Fee paid',
+        'Visa documents issued',
+        'Visa submitted',
+        'Visa received',
+        'Student dropped'
+      ];
+      if (validStatuses.includes(status)) {
+        student.status = status;
+      } else {
+        return sendError(res, 'Invalid status value', 400);
+      }
+    }
     if (courseId !== undefined) {
       const course = await Course.findById(courseId);
       if (!course || !course.isActive) {

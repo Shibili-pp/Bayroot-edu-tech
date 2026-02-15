@@ -2,6 +2,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import logo from '../../assets/EDU CONNECT.png';
+import NewAnnouncementModal from '../NewAnnouncementModal';
 import './AdminLayout.css';
 
 /**
@@ -12,6 +13,7 @@ const AdminLayout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
 
   const handleLogout = async () => {
     await logout();
@@ -82,6 +84,35 @@ const AdminLayout = ({ children }) => {
       )
     },
     { 
+      path: '/admin/universities', 
+      label: 'Universities', 
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M9 2.25L11.25 8.25L17.25 9L11.25 9.75L9 15.75L6.75 9.75L0.75 9L6.75 8.25L9 2.25Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      )
+    },
+    { 
+      path: '/admin/countries', 
+      label: 'Countries', 
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M9 1.5C4.85786 1.5 1.5 4.85786 1.5 9C1.5 13.1421 4.85786 16.5 9 16.5C13.1421 16.5 16.5 13.1421 16.5 9C16.5 4.85786 13.1421 1.5 9 1.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M9 1.5V16.5M1.5 9H16.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      )
+    },
+    { 
+      path: '/admin/courses', 
+      label: 'Courses', 
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M3 2.25H15C15.4142 2.25 15.75 2.58579 15.75 3V15C15.75 15.4142 15.4142 15.75 15 15.75H3C2.58579 15.75 2.25 15.4142 2.25 15V3C2.25 2.58579 2.58579 2.25 3 2.25Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M6 5.25H12M6 9H12M6 12.75H9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      )
+    },
+    { 
       path: '/admin/settings', 
       label: 'Settings', 
       icon: (
@@ -111,13 +142,9 @@ const AdminLayout = ({ children }) => {
       <aside className={`layout-sidebar ${sidebarOpen ? 'open' : ''}`}>
         {/* Logo Section */}
         <div className="sidebar-header">
-          <div className="logo-container">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ marginRight: '8px' }}>
-              <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#2563eb"/>
-              <path d="M2 17L12 22L22 17M2 12L12 17L22 12" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            <span className="logo-text">Bayroot</span>
-          </div>
+          <Link to="/admin/dashboard" className="logo-container">
+            <img src={logo} alt="Bayroot Logo" className="sidebar-logo" />
+          </Link>
         </div>
 
         {/* Navigation Menu */}
@@ -183,9 +210,9 @@ const AdminLayout = ({ children }) => {
             </svg>
           </button>
           
-          <div className="header-logo-mobile">
-            <span className="logo-text">Bayroot</span>
-          </div>
+          <Link to="/admin/dashboard" className="header-logo-mobile">
+            <img src={logo} alt="Bayroot Logo" className="header-logo-img" />
+          </Link>
 
           <div className="header-search">
             <svg className="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -205,11 +232,14 @@ const AdminLayout = ({ children }) => {
                 <path d="M8 16V17C8 18.1046 8.89543 19 10 19C11.1046 19 12 18.1046 12 17V16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
-            <button className="btn-new-application">
+            <button 
+              className="btn-new-application"
+              onClick={() => setIsAnnouncementModalOpen(true)}
+            >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ marginRight: '6px' }}>
                 <path d="M8 3V13M3 8H13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
               </svg>
-              New Application
+              New Announcement
             </button>
           </div>
         </header>
@@ -219,6 +249,15 @@ const AdminLayout = ({ children }) => {
           {children}
         </main>
       </div>
+
+      {/* New Announcement Modal */}
+      <NewAnnouncementModal
+        isOpen={isAnnouncementModalOpen}
+        onClose={() => setIsAnnouncementModalOpen(false)}
+        onSuccess={(announcement) => {
+          setIsAnnouncementModalOpen(false);
+        }}
+      />
     </div>
   );
 };

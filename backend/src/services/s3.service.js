@@ -1,4 +1,5 @@
-const { PutObjectCommand, DeleteObjectCommand, HeadObjectCommand } = require('@aws-sdk/client-s3');
+const { PutObjectCommand, DeleteObjectCommand, HeadObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { s3Client, s3Config, getS3Folder, getS3Url } = require('../config/s3.config');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
@@ -90,9 +91,58 @@ const fileExistsInS3 = async (s3Key) => {
   }
 };
 
+/**
+ * Generate presigned URL for secure file access
+ * @param {string} s3Key - S3 object key
+ * @param {number} expiresIn - URL expiration time in seconds (default: 3600 = 1 hour)
+ * @returns {Promise<string>} Presigned URL
+ */
+const getPresignedUrl = async (s3Key, expiresIn = 3600) => {
+  try {
+    const command = new GetObjectCommand({
+      Bucket: s3Config.bucketName,
+      Key: s3Key,
+    });
+
+    const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn });
+    return presignedUrl;
+  } catch (error) {
+    throw new Error(`Failed to generate presigned URL: ${error.message}`);
+  }
+};
+
+/**
+ * Get file from S3 as a stream
+ * @param {string} s3Key - S3 object key
+ * @returns {Promise<{Body: ReadableStream, ContentType: string, ContentLength: number}>}
+ */
+const getFileFromS3 = async (s3Key) => {
+  try {
+    const command = new GetObjectCommand({
+      Bucket: s3Config.bucketName,
+      Key: s3Key,
+    });
+
+    const response = await s3Client.send(command);
+    return {
+      Body: response.Body,
+      ContentType: response.ContentType || 'application/octet-stream',
+      ContentLength: response.ContentLength || 0,
+      Metadata: response.Metadata || {},
+    };
+  } catch (error) {
+    throw new Error(`Failed to get file from S3: ${error.message}`);
+  }
+};
+
 module.exports = {
   uploadToS3,
   deleteFromS3,
   fileExistsInS3,
+  getPresignedUrl,
+  getFileFromS3,
 };
+
+
+
 

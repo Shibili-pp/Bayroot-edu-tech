@@ -25,6 +25,12 @@ const formatStudentResponse = (student, role) => {
       universityId: studentObj.universityId,
       university: studentObj.university || null,
       partnerId: studentObj.partnerId,
+      partner: studentObj.partnerId ? {
+        id: studentObj.partnerId._id || studentObj.partnerId.id,
+        companyName: studentObj.partnerId.companyName,
+        email: studentObj.partnerId.email
+      } : null,
+      status: studentObj.status || 'Under review',
       documents: studentObj.documents || [],
       createdAt: studentObj.createdAt
     };
@@ -35,7 +41,7 @@ const formatStudentResponse = (student, role) => {
     return {
       id: studentObj._id || studentObj.id,
       fullName: studentObj.fullName,
-      email: mask(decrypt(studentObj.email), 3), // Show last 3 chars
+      email: decrypt(studentObj.email), // Show full email
       phone: mask(decrypt(studentObj.phone), 4), // Show last 4 digits
       passportNumber: studentObj.passportNumber ? mask(decrypt(studentObj.passportNumber), 2) : null,
       aadharNumber: mask(decrypt(studentObj.aadharNumber), 4), // Show last 4 digits
@@ -44,6 +50,7 @@ const formatStudentResponse = (student, role) => {
       universityId: studentObj.universityId,
       university: studentObj.university || null,
       partnerId: studentObj.partnerId,
+      status: studentObj.status || 'Under review',
       documents: studentObj.documents || [],
       createdAt: studentObj.createdAt
     };

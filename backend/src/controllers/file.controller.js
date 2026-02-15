@@ -1,7 +1,8 @@
 const File = require('../models/File.model');
+const Student = require('../models/Student.model');
 const { sendSuccess, sendError } = require('../utils/response.util');
 const { logAudit, getClientIp } = require('../utils/audit.util');
-const { uploadToS3, deleteFromS3, fileExistsInS3 } = require('../services/s3.service');
+const { uploadToS3, deleteFromS3, fileExistsInS3, getPresignedUrl, getFileFromS3 } = require('../services/s3.service');
 const { getFileType } = require('../middlewares/upload.middleware');
 const { v4: uuidv4 } = require('uuid');
 
@@ -251,9 +252,118 @@ const listFiles = async (req, res) => {
   }
 };
 
+/**
+ * Get presigned URL for document access
+ * GET /api/files/document/:s3Key
+ * This endpoint allows accessing documents from student records
+ */
+const getDocumentUrl = async (req, res) => {
+  try {
+    const { s3Key } = req.query; // Get from query parameter instead of route param
+    const userId = req.user.userId || req.user.id;
+    const role = req.user.role;
+
+    if (!s3Key) {
+      return sendError(res, 'S3 key is required', 400);
+    }
+
+    // Decode the s3Key (it might be URL encoded)
+    const decodedS3Key = decodeURIComponent(s3Key);
+
+    // Verify file exists in S3
+    const existsInS3 = await fileExistsInS3(decodedS3Key);
+    if (!existsInS3) {
+      return sendError(res, 'File not found in storage', 404);
+    }
+
+    // For PARTNER role, verify they have access to this document
+    // (i.e., it belongs to a student they created)
+    if (role === 'PARTNER') {
+      const student = await Student.findOne({
+        'documents.s3Key': decodedS3Key,
+        partnerId: userId,
+        isDeleted: false,
+      });
+
+      if (!student) {
+        return sendError(res, 'Access denied. You can only access documents from your students.', 403);
+      }
+    }
+
+    // Generate presigned URL (valid for 1 hour)
+    const presignedUrl = await getPresignedUrl(decodedS3Key, 3600);
+
+    return sendSuccess(res, {
+      url: presignedUrl,
+      expiresIn: 3600,
+    });
+  } catch (error) {
+    console.error('Get document URL error:', error);
+    return sendError(res, error.message || 'Failed to generate document URL', 500);
+  }
+};
+
+/**
+ * Download document (proxies file from S3 to avoid CORS issues)
+ * GET /api/files/download
+ * This endpoint streams the file from S3 to the client
+ */
+const downloadDocument = async (req, res) => {
+  try {
+    const { s3Key, filename } = req.query;
+    const userId = req.user.userId || req.user.id;
+    const role = req.user.role;
+
+    if (!s3Key) {
+      return sendError(res, 'S3 key is required', 400);
+    }
+
+    // Decode the s3Key (it might be URL encoded)
+    const decodedS3Key = decodeURIComponent(s3Key);
+
+    // Verify file exists in S3
+    const existsInS3 = await fileExistsInS3(decodedS3Key);
+    if (!existsInS3) {
+      return sendError(res, 'File not found in storage', 404);
+    }
+
+    // For PARTNER role, verify they have access to this document
+    if (role === 'PARTNER') {
+      const student = await Student.findOne({
+        'documents.s3Key': decodedS3Key,
+        partnerId: userId,
+        isDeleted: false,
+      });
+
+      if (!student) {
+        return sendError(res, 'Access denied. You can only access documents from your students.', 403);
+      }
+    }
+
+    // Get file from S3
+    const fileData = await getFileFromS3(decodedS3Key);
+    const originalName = filename || fileData.Metadata.originalName || 'document';
+
+    // Set headers to force download
+    res.setHeader('Content-Type', fileData.ContentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(originalName)}"`);
+    res.setHeader('Content-Length', fileData.ContentLength);
+
+    // Stream the file to the response
+    fileData.Body.pipe(res);
+  } catch (error) {
+    console.error('Download document error:', error);
+    if (!res.headersSent) {
+      return sendError(res, error.message || 'Failed to download document', 500);
+    }
+  }
+};
+
 module.exports = {
   uploadFile,
   getFileMetadata,
   deleteFile,
   listFiles,
+  getDocumentUrl,
+  downloadDocument,
 };

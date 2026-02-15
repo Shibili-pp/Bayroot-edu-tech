@@ -29,12 +29,19 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.2s;
 }
 
-.logo-text {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #2563eb;
+.header-logo-mobile:hover {
+  opacity: 0.8;
+}
+
+.header-logo-img {
+  height: 40px;
+  width: auto;
+  object-fit: contain;
 }
 
 /* Left Sidebar */
@@ -59,12 +66,12 @@
 
 /* Logo Section */
 .sidebar-header {
-  padding: 1rem;
+  padding: 0.5rem;
   border-bottom: 1px solid #f3f4f6;
   background: white;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
 }
 
 @media (max-width: 1024px) {
@@ -76,8 +83,23 @@
 .logo-container {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   width: 100%;
+  padding: 0;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.logo-container:hover {
+  opacity: 0.8;
+}
+
+.sidebar-logo {
+  width: 120px;
+  height: 80px;
+  object-fit: contain;
+  display: block;
 }
 
 /* Navigation Menu */
@@ -489,4 +511,6 @@
 .layout-sidebar::-webkit-scrollbar-thumb:hover {
   background: #9ca3af;
 }
+
+
 

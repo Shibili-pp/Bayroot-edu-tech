@@ -15,6 +15,7 @@ router.post('/reset-password', generalRateLimiter, adminController.resetPassword
 
 // Protected routes
 router.get('/profile', generalRateLimiter, verifyToken, checkAdmin, adminController.getProfile);
+router.get('/partners', generalRateLimiter, verifyToken, checkAdmin, adminController.getAllPartners);
 router.post('/logout', generalRateLimiter, verifyToken, checkAdmin, adminController.logout);
 
 module.exports = router;

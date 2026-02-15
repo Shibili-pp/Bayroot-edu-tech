@@ -6,20 +6,30 @@ const { logAudit, getClientIp } = require('../utils/audit.util');
 const { recordFailedAttempt, resetFailedAttempts } = require('../middlewares/accountLockout.middleware');
 const { blacklistToken } = require('../middlewares/tokenBlacklist.middleware');
 const { sendOTP, verifyOTP, isOTPVerified } = require('../utils/otp.util');
+const { checkDuplicates } = require('../utils/duplicateCheck.util');
 
 // Send OTP for Partner signup
 const sendSignupOTP = async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, mobileNumber } = req.body;
 
     if (!email) {
       return sendError(res, 'Email is required', 400);
     }
 
-    // Check if partner already exists
-    const existingPartner = await Partner.findOne({ email });
-    if (existingPartner) {
-      return sendError(res, 'Partner with this email already exists', 400);
+    // Check for duplicates in both Admin and Partner models
+    const duplicates = await checkDuplicates(email, mobileNumber);
+
+    // Check email duplicates
+    if (duplicates.emailExists.exists) {
+      const modelType = duplicates.emailExists.model === 'Admin' ? 'Admin' : 'Partner';
+      return sendError(res, `An account with this email already exists as a ${modelType}. Please use a different email.`, 400);
+    }
+
+    // Check mobile number duplicates
+    if (mobileNumber && duplicates.mobileExists.exists) {
+      const modelType = duplicates.mobileExists.model === 'Admin' ? 'Admin' : 'Partner';
+      return sendError(res, `An account with this mobile number already exists as a ${modelType}. Please use a different mobile number.`, 400);
     }
 
     // Send OTP
@@ -50,9 +60,19 @@ const register = async (req, res) => {
       return sendError(res, otpVerification.message || 'Invalid or expired OTP', 400);
     }
 
-    const existingPartner = await Partner.findOne({ email });
-    if (existingPartner) {
-      return sendError(res, 'Partner with this email already exists', 400);
+    // Check for duplicates in both Admin and Partner models (double-check before registration)
+    const duplicates = await checkDuplicates(email, mobileNumber);
+
+    // Check email duplicates
+    if (duplicates.emailExists.exists) {
+      const modelType = duplicates.emailExists.model === 'Admin' ? 'Admin' : 'Partner';
+      return sendError(res, `An account with this email already exists as a ${modelType}. Please use a different email.`, 400);
+    }
+
+    // Check mobile number duplicates
+    if (duplicates.mobileExists.exists) {
+      const modelType = duplicates.mobileExists.model === 'Admin' ? 'Admin' : 'Partner';
+      return sendError(res, `An account with this mobile number already exists as a ${modelType}. Please use a different mobile number.`, 400);
     }
 
     const partner = new Partner({ companyName, email, mobileNumber, password });

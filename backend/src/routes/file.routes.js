@@ -12,11 +12,18 @@ router.use(verifyToken);
 // Upload file endpoint - uploads to S3 and saves metadata to MongoDB
 router.post('/upload', generalRateLimiter, authorize('PARTNER', 'ADMIN'), upload.single('file'), fileController.uploadFile);
 
+// List files (with optional filtering) - must be before /:fileId route
+router.get('/', generalRateLimiter, authorize('PARTNER', 'ADMIN'), fileController.listFiles);
+
+// Download document (proxies from S3 to avoid CORS) - must be before /document route
+router.get('/download', downloadRateLimiter, authorize('PARTNER', 'ADMIN'), fileController.downloadDocument);
+
+// Get presigned URL for document access (must be before /:fileId route)
+// Use query parameter to handle s3Key with slashes
+router.get('/document', downloadRateLimiter, authorize('PARTNER', 'ADMIN'), fileController.getDocumentUrl);
+
 // Get file metadata by fileId
 router.get('/:fileId', generalRateLimiter, authorize('PARTNER', 'ADMIN'), fileController.getFileMetadata);
-
-// List files (with optional filtering)
-router.get('/', generalRateLimiter, authorize('PARTNER', 'ADMIN'), fileController.listFiles);
 
 // Delete file from S3 and MongoDB
 router.delete('/:fileId', generalRateLimiter, authorize('PARTNER', 'ADMIN'), fileController.deleteFile);

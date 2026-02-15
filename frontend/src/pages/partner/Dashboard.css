@@ -257,7 +257,14 @@
   font-size: 0.75rem;
 }
 
-.upload-btn {
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.upload-btn,
+.edit-btn {
   background: white;
   border: 1px solid #e5e7eb;
   font-size: 1rem;
@@ -265,7 +272,6 @@
   padding: 0.5rem;
   border-radius: 6px;
   transition: all 0.2s;
-  flex-shrink: 0;
   width: 36px;
   height: 36px;
   display: flex;
@@ -274,8 +280,15 @@
 }
 
 .upload-btn:hover {
-  background: #f5f5f5;
+  background: #f0f4ff;
   border-color: #2563eb;
+  color: #2563eb;
+}
+
+.edit-btn:hover {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #f59e0b;
 }
 
 /* Right Sidebar */
@@ -352,11 +365,28 @@
   min-width: 0;
 }
 
+.update-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
 .update-time {
   font-size: 0.6875rem;
   color: #9ca3af;
-  margin-bottom: 0.25rem;
   font-weight: 500;
+}
+
+.update-category {
+  font-size: 0.625rem;
+  font-weight: 600;
+  padding: 0.125rem 0.5rem;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
 }
 
 .update-text {

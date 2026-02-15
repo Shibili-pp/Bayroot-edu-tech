@@ -51,6 +51,24 @@ const studentSchema = new mongoose.Schema({
     ref: 'Partner',
     required: true
   },
+  status: {
+    type: String,
+    enum: [
+      'Under review',
+      'Offer requested',
+      'Offer received',
+      'Application moved',
+      'Ministry submitted',
+      'Ministry approved',
+      'Fee paid',
+      'Visa documents issued',
+      'Visa submitted',
+      'Visa received',
+      'Student dropped'
+    ],
+    default: 'Under review',
+    trim: true
+  },
   documents: [{
     fileId: {
       type: String,
