@@ -427,6 +427,95 @@ const uploadDocuments = async (req, res) => {
   }
 };
 
+// Upload offer letter for student (Admin only)
+const uploadOfferLetter = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.userId || req.user.id;
+    const role = req.user.role;
+    
+    // Only Admin can upload offer letters
+    if (role !== 'ADMIN') {
+      return sendError(res, 'Only admins can upload offer letters', 403);
+    }
+    
+    const student = await Student.findOne({ _id: id, isDeleted: false });
+    if (!student) {
+      return sendError(res, 'Student not found', 404);
+    }
+
+    if (!req.file) {
+      return sendError(res, 'No file uploaded', 400);
+    }
+
+    // Import S3 service and upload middleware helpers
+    const { uploadToS3 } = require('../services/s3.service');
+    const { getFileType } = require('../middlewares/upload.middleware');
+
+    // Determine file type (only PDF or image allowed for offer letter)
+    const fileType = getFileType(req.file.mimetype);
+    if (!fileType || (fileType !== 'pdf' && fileType !== 'image')) {
+      return sendError(res, 'Invalid file type. Only PDF and image files are allowed for offer letters', 400);
+    }
+
+    // Validate file size (max 20MB)
+    const maxSize = 20 * 1024 * 1024;
+    if (req.file.size > maxSize) {
+      return sendError(res, 'File exceeds maximum size of 20MB', 400);
+    }
+
+    // Generate file ID
+    const fileId = uuidv4();
+
+    // Upload to S3
+    const { s3Key, s3Url, fileName } = await uploadToS3(
+      req.file.buffer,
+      req.file.originalname,
+      fileType,
+      req.file.mimetype
+    );
+
+    // Save offer letter metadata
+    student.offerLetter = {
+      fileId,
+      filename: fileName,
+      originalName: req.file.originalname,
+      s3Key,
+      s3Url,
+      fileType,
+      url: s3Url,
+      uploadedAt: new Date(),
+      uploadedBy: {
+        userId,
+        userModel: 'Admin'
+      }
+    };
+
+    await student.save();
+
+    // Log audit
+    await logAudit({
+      userId,
+      userModel: 'Admin',
+      role,
+      action: 'UPLOAD_OFFER_LETTER',
+      targetId: student._id,
+      targetModel: 'Student',
+      metadata: { 
+        fileId,
+        fileName: req.file.originalname,
+      },
+      ipAddress: getClientIp(req),
+      userAgent: req.get('user-agent')
+    });
+
+    const formattedStudent = formatStudentResponse(student, role);
+    return sendSuccess(res, { student: formattedStudent }, 'Offer letter uploaded successfully');
+  } catch (error) {
+    return sendError(res, error.message, 500);
+  }
+};
+
 // Delete student (Admin only) - Soft delete
 const deleteStudent = async (req, res) => {
   try {
@@ -474,6 +563,7 @@ module.exports = {
   getStudent,
   updateStudent,
   uploadDocuments,
+  uploadOfferLetter,
   deleteStudent
 };
 

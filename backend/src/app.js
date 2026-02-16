@@ -101,6 +101,10 @@ app.get('/api/health', (req, res) => {
 app.use('/api/admin', adminRoutes);
 app.use('/api/partner', partnerRoutes);
 app.use('/api/students', studentRoutes);
+
+// Comment routes
+const commentRoutes = require('./routes/comment.routes');
+app.use('/api/comments', commentRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/universities', universityRoutes);

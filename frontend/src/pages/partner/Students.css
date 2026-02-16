@@ -183,6 +183,29 @@
   gap: 0.75rem;
 }
 
+.student-name-cell.clickable {
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 0.25rem;
+  margin: -0.25rem;
+  border-radius: 6px;
+}
+
+.student-name-cell.clickable:hover {
+  background: #f3f4f6;
+}
+
+.student-name-cell.clickable .student-name {
+  color: #2563eb;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.student-name-cell.clickable:hover .student-name {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
 .student-avatar-small {
   width: 40px;
   height: 40px;

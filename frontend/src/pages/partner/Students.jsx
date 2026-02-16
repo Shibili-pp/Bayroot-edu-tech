@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PartnerLayout from '../../components/layout/PartnerLayout';
 import api from '../../api/axios';
 import './Students.css';
 
 const Students = () => {
+  const navigate = useNavigate();
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -137,7 +139,11 @@ const Students = () => {
                   return (
                     <tr key={student._id || student.id} className="student-row">
                       <td>
-                        <div className="student-name-cell">
+                        <div 
+                          className="student-name-cell clickable"
+                          onClick={() => navigate(`/partner/students/${student._id || student.id}`)}
+                          style={{ cursor: 'pointer' }}
+                        >
                           <div className="student-avatar-small">
                             {student.fullName?.charAt(0)?.toUpperCase() || 'S'}
                           </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import AdminLayout from '../../components/layout/AdminLayout';
 import api from '../../api/axios';
@@ -9,6 +10,7 @@ import './Dashboard.css';
  */
 const Dashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalApplications: 0,
     offerLetterProcess: 0,
@@ -360,7 +362,11 @@ const Dashboard = () => {
                         {recentApplications.map((app) => (
                           <tr key={app.id}>
                             <td>
-                              <div className="student-cell">
+                              <div 
+                                className="student-cell clickable"
+                                onClick={() => navigate(`/admin/applications/${app.id}`)}
+                                style={{ cursor: 'pointer' }}
+                              >
                                 <div className="student-avatar">{app.initials}</div>
                                 <span>{app.studentName}</span>
                               </div>

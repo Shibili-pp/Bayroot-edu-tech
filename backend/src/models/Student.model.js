@@ -92,6 +92,36 @@ const studentSchema = new mongoose.Schema({
       default: Date.now
     }
   }],
+  offerLetter: {
+    fileId: {
+      type: String,
+      default: null
+    },
+    filename: String,
+    originalName: String,
+    s3Key: String,
+    s3Url: String,
+    fileType: {
+      type: String,
+      enum: ['pdf', 'image'],
+      default: 'pdf'
+    },
+    url: String,
+    uploadedAt: {
+      type: Date,
+      default: null
+    },
+    uploadedBy: {
+      userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        refPath: 'uploadedBy.userModel'
+      },
+      userModel: {
+        type: String,
+        enum: ['Admin', 'Partner']
+      }
+    }
+  },
   isDeleted: {
     type: Boolean,
     default: false,

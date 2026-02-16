@@ -11,10 +11,12 @@ import './Dashboard.css';
 const Dashboard = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState({
-    totalStudents: 0,
-    inProgress: 0,
-    pendingDocs: 0,
-    offersReceived: 0
+    totalApplications: 0,
+    offerLetterProcess: 0,
+    applicationProcessing: 0,
+    visaProcess: 0,
+    studentFileCompleted: 0,
+    studentDropped: 0
   });
   const [actionItems, setActionItems] = useState([]);
   const [recentUpdates, setRecentUpdates] = useState([]);
@@ -37,30 +39,46 @@ const Dashboard = () => {
         if (studentsResponse.data.success) {
           const students = studentsResponse.data.data?.students || [];
           
-          // Calculate statistics
-          const totalStudents = students.length;
+          // Calculate statistics based on status
+          const totalApplications = students.length;
           
-          // In Progress: Students with at least one document
-          const inProgress = students.filter(s => s.documents && s.documents.length > 0).length;
-          
-          // Pending Docs: Students with fewer than 3 documents (assuming 3 is minimum required)
-          // Or students created more than 7 days ago with no documents
-          const sevenDaysAgo = new Date();
-          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-          const pendingDocs = students.filter(s => {
-            const docCount = s.documents?.length || 0;
-            const createdDate = new Date(s.createdAt);
-            return docCount < 3 || (docCount === 0 && createdDate < sevenDaysAgo);
+          // Offer Letter Process: Under review, Offer requested, Offer received
+          const offerLetterProcess = students.filter(s => {
+            const status = s.status || 'Under review';
+            return ['Under review', 'Offer requested', 'Offer received'].includes(status);
           }).length;
           
-          // Offers Received: Students with documents (simplified - can be enhanced later)
-          const offersReceived = students.filter(s => s.documents && s.documents.length >= 3).length;
+          // Application Processing: Application moved, Ministry submitted, Ministry approved, Fee paid
+          const applicationProcessing = students.filter(s => {
+            const status = s.status || 'Under review';
+            return ['Application moved', 'Ministry submitted', 'Ministry approved', 'Fee paid'].includes(status);
+          }).length;
+          
+          // Visa Process: Visa documents issued, Visa submitted
+          const visaProcess = students.filter(s => {
+            const status = s.status || 'Under review';
+            return ['Visa documents issued', 'Visa submitted'].includes(status);
+          }).length;
+          
+          // Student File Completed: Visa received
+          const studentFileCompleted = students.filter(s => {
+            const status = s.status || 'Under review';
+            return status === 'Visa received';
+          }).length;
+          
+          // Student Dropped: Student dropped
+          const studentDropped = students.filter(s => {
+            const status = s.status || 'Under review';
+            return status === 'Student dropped';
+          }).length;
           
           setStats({
-            totalStudents,
-            inProgress,
-            pendingDocs,
-            offersReceived
+            totalApplications,
+            offerLetterProcess,
+            applicationProcessing,
+            visaProcess,
+            studentFileCompleted,
+            studentDropped
           });
 
           // Generate action items from students missing documents
@@ -446,22 +464,35 @@ const Dashboard = () => {
         setActionItems(studentsNeedingDocs);
         
         // Update stats
-        const totalStudents = students.length;
-        const inProgress = students.filter(s => s.documents && s.documents.length > 0).length;
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        const pendingDocs = students.filter(s => {
-          const docCount = s.documents?.length || 0;
-          const createdDate = new Date(s.createdAt);
-          return docCount < 3 || (docCount === 0 && createdDate < sevenDaysAgo);
+        const totalApplications = students.length;
+        const offerLetterProcess = students.filter(s => {
+          const status = s.status || 'Under review';
+          return ['Under review', 'Offer requested', 'Offer received'].includes(status);
         }).length;
-        const offersReceived = students.filter(s => s.documents && s.documents.length >= 3).length;
+        const applicationProcessing = students.filter(s => {
+          const status = s.status || 'Under review';
+          return ['Application moved', 'Ministry submitted', 'Ministry approved', 'Fee paid'].includes(status);
+        }).length;
+        const visaProcess = students.filter(s => {
+          const status = s.status || 'Under review';
+          return ['Visa documents issued', 'Visa submitted'].includes(status);
+        }).length;
+        const studentFileCompleted = students.filter(s => {
+          const status = s.status || 'Under review';
+          return status === 'Visa received';
+        }).length;
+        const studentDropped = students.filter(s => {
+          const status = s.status || 'Under review';
+          return status === 'Student dropped';
+        }).length;
         
         setStats({
-          totalStudents,
-          inProgress,
-          pendingDocs,
-          offersReceived
+          totalApplications,
+          offerLetterProcess,
+          applicationProcessing,
+          visaProcess,
+          studentFileCompleted,
+          studentDropped
         });
       }
     } catch (error) {
@@ -497,34 +528,74 @@ const Dashboard = () => {
             {/* Statistics Cards */}
             <div className="stats-grid">
               <div className="stat-card">
-                <div className="stat-icon overall">👥</div>
+                <div className="stat-icon total-applications">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M9 12H15M9 16H15M17 21H7C5.89543 21 5 20.1046 5 19V5C5 3.89543 5.89543 3 7 3H12.5858C12.851 3 13.1054 3.10536 13.2929 3.29289L18.7071 8.70711C18.8946 8.89464 19 9.149 19 9.41421V19C19 20.1046 18.1046 21 17 21Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
                 <div className="stat-content">
-                  <div className="stat-value">{stats.totalStudents.toLocaleString()}</div>
-                  <div className="stat-label">Total Students</div>
+                  <div className="stat-value">{stats.totalApplications.toLocaleString()}</div>
+                  <div className="stat-label">Total Applications</div>
                 </div>
               </div>
 
               <div className="stat-card">
-                <div className="stat-icon active">📄</div>
+                <div className="stat-icon offer-letter-process">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
                 <div className="stat-content">
-                  <div className="stat-value">{stats.inProgress}</div>
-                  <div className="stat-label">In Progress</div>
+                  <div className="stat-value">{stats.offerLetterProcess.toLocaleString()}</div>
+                  <div className="stat-label">Offer Letter Process</div>
                 </div>
               </div>
 
-              <div className="stat-card urgent">
-                <div className="stat-icon urgent-icon">⚠️</div>
+              <div className="stat-card">
+                <div className="stat-icon application-processing">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 6V12L16 14M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
                 <div className="stat-content">
-                  <div className="stat-value">{stats.pendingDocs}</div>
-                  <div className="stat-label">Pending Docs</div>
+                  <div className="stat-value">{stats.applicationProcessing.toLocaleString()}</div>
+                  <div className="stat-label">Application Processing</div>
+                </div>
+              </div>
+
+              <div className="stat-card">
+                <div className="stat-icon visa-process">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M9 5C9 6.10457 9.89543 7 11 7H13C14.1046 7 15 6.10457 15 5M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5M12 12H15M12 16H15M9 12H9.01M9 16H9.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+                <div className="stat-content">
+                  <div className="stat-value">{stats.visaProcess.toLocaleString()}</div>
+                  <div className="stat-label">Visa Process</div>
                 </div>
               </div>
 
               <div className="stat-card success">
-                <div className="stat-icon success-icon">✓</div>
+                <div className="stat-icon student-file-completed">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M9 12L11 14L15 10M20 7L12 3L4 7M20 7V17L12 21M20 7L12 11M12 21L4 17V7M12 21V11M4 7L12 11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
                 <div className="stat-content">
-                  <div className="stat-value">{stats.offersReceived}</div>
-                  <div className="stat-label">Offers Received</div>
+                  <div className="stat-value">{stats.studentFileCompleted.toLocaleString()}</div>
+                  <div className="stat-label">Student File Completed</div>
+                </div>
+              </div>
+
+              <div className="stat-card danger">
+                <div className="stat-icon student-dropped">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+                <div className="stat-content">
+                  <div className="stat-value">{stats.studentDropped.toLocaleString()}</div>
+                  <div className="stat-label">Student Dropped</div>
                 </div>
               </div>
             </div>

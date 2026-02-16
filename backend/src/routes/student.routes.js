@@ -26,6 +26,9 @@ router.put('/:id', authorize('PARTNER', 'ADMIN'), studentController.updateStuden
 // Partner and Admin can upload documents
 router.post('/:id/documents', authorize('PARTNER', 'ADMIN'), upload.array('documents', 10), studentController.uploadDocuments);
 
+// Only Admin can upload offer letter
+router.post('/:id/offer-letter', checkAdmin, upload.single('offerLetter'), studentController.uploadOfferLetter);
+
 // Only Admin can delete student
 router.delete('/:id', checkAdmin, studentController.deleteStudent);
 

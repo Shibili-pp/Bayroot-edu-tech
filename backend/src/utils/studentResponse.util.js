@@ -32,19 +32,20 @@ const formatStudentResponse = (student, role) => {
       } : null,
       status: studentObj.status || 'Under review',
       documents: studentObj.documents || [],
+      offerLetter: studentObj.offerLetter || null,
       createdAt: studentObj.createdAt
     };
   }
 
-  // Partner gets masked sensitive data
+  // Partner gets full decrypted data
   if (role === 'PARTNER') {
     return {
       id: studentObj._id || studentObj.id,
       fullName: studentObj.fullName,
       email: decrypt(studentObj.email), // Show full email
-      phone: mask(decrypt(studentObj.phone), 4), // Show last 4 digits
-      passportNumber: studentObj.passportNumber ? mask(decrypt(studentObj.passportNumber), 2) : null,
-      aadharNumber: mask(decrypt(studentObj.aadharNumber), 4), // Show last 4 digits
+      phone: decrypt(studentObj.phone), // Show full phone number
+      passportNumber: studentObj.passportNumber ? decrypt(studentObj.passportNumber) : null, // Show full passport number
+      aadharNumber: decrypt(studentObj.aadharNumber), // Show full Aadhar/GCC ID
       courseId: studentObj.courseId,
       course: studentObj.course || null,
       universityId: studentObj.universityId,
@@ -52,6 +53,7 @@ const formatStudentResponse = (student, role) => {
       partnerId: studentObj.partnerId,
       status: studentObj.status || 'Under review',
       documents: studentObj.documents || [],
+      offerLetter: studentObj.offerLetter || null,
       createdAt: studentObj.createdAt
     };
   }

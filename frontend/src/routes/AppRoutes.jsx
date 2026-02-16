@@ -14,6 +14,7 @@ import Countries from '../pages/admin/Countries';
 import Courses from '../pages/admin/Courses';
 import PartnerDashboard from '../pages/partner/Dashboard';
 import Students from '../pages/partner/Students';
+import PartnerStudentDetail from '../pages/partner/StudentDetail';
 import NotFound from '../pages/common/NotFound';
 
 /**
@@ -120,6 +121,7 @@ const AppRoutes = () => {
             <Routes>
               <Route path="dashboard" element={<PartnerDashboard />} />
               <Route path="students" element={<Students />} />
+              <Route path="students/:id" element={<PartnerStudentDetail />} />
               <Route path="*" element={<Navigate to="/partner/dashboard" replace />} />
             </Routes>
           </ProtectedRoute>
