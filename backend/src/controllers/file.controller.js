@@ -278,9 +278,13 @@ const getDocumentUrl = async (req, res) => {
 
     // For PARTNER role, verify they have access to this document
     // (i.e., it belongs to a student they created)
+    // Check both documents array and offerLetter field
     if (role === 'PARTNER') {
       const student = await Student.findOne({
-        'documents.s3Key': decodedS3Key,
+        $or: [
+          { 'documents.s3Key': decodedS3Key },
+          { 'offerLetter.s3Key': decodedS3Key }
+        ],
         partnerId: userId,
         isDeleted: false,
       });
@@ -328,9 +332,13 @@ const downloadDocument = async (req, res) => {
     }
 
     // For PARTNER role, verify they have access to this document
+    // Check both documents array and offerLetter field
     if (role === 'PARTNER') {
       const student = await Student.findOne({
-        'documents.s3Key': decodedS3Key,
+        $or: [
+          { 'documents.s3Key': decodedS3Key },
+          { 'offerLetter.s3Key': decodedS3Key }
+        ],
         partnerId: userId,
         isDeleted: false,
       });

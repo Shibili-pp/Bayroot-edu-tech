@@ -24,3 +24,5 @@ router.delete('/:commentId', authorize('PARTNER', 'ADMIN'), commentController.de
 
 module.exports = router;
 
+
+

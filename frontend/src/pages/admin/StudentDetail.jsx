@@ -183,34 +183,39 @@ const StudentDetail = () => {
     if (!student) return { text: 'Pending', class: 'status-pending' };
     const currentStatus = student.status || 'Under review';
     
-    const visaProcessStatuses = ['Visa documents issued', 'Visa submitted', 'Visa received'];
+    // Visa-related statuses indicate partner has submitted visa document request
+    // and admin has processed it
+    const visaProcessStatuses = ['Fee paid', 'Visa documents issued', 'Visa submitted', 'Visa received'];
     
-    // If status indicates visa process has started, it's received
+    // If status indicates visa document was processed, it's received
     if (visaProcessStatuses.includes(currentStatus)) {
       return { text: 'Received', class: 'status-submitted' };
     }
     
     // Check if application process request shows "Received"
-    // Use the same logic as getApplicationProcessStatus to determine if application process is received
+    // Partner can only submit visa document request AFTER application process is complete
     const appProcessStatus = getApplicationProcessStatus();
     const applicationProcessReceived = appProcessStatus.text === 'Received';
     
     if (applicationProcessReceived) {
       // Application process is received, so visa document section becomes accessible
       // Partner submits visa document by uploading fee payment statement
-      // If documents exist, visa document was likely submitted
-      if (student.documents && student.documents.length > 0) {
-        // If application process is received and documents exist, visa document was likely submitted
-        // This is a heuristic: once application process is complete, any documents
-        // uploaded are likely visa documents (fee payment statement)
+      // If status has progressed beyond "Offer received" (application process is complete)
+      // and there are documents, visa document was likely submitted
+      // The logic: once application process is complete, any documents uploaded
+      // are likely visa documents (fee payment statement)
+      const hasDocuments = student.documents && student.documents.length > 0;
+      
+      // If application process is complete (status beyond "Offer received") 
+      // and documents exist, partner likely submitted visa document request
+      // Status will be "Application moved", "Ministry submitted", or "Ministry approved"
+      // before admin processes visa document and moves status to "Fee paid"
+      if (hasDocuments) {
         return { text: 'Received', class: 'status-submitted' };
       }
-      
-      // Even if no documents yet, if application process is complete, allow access
-      // But mark as Pending until documents are uploaded
-      return { text: 'Pending', class: 'status-pending' };
     }
     
+    // Otherwise, it's pending - partner hasn't submitted visa document request yet
     return { text: 'Pending', class: 'status-pending' };
   };
 
