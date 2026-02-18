@@ -1,19 +1,49 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import AdminLayout from '../../components/layout/AdminLayout';
 import api from '../../api/axios';
 import './Applications.css';
 
 const Applications = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('All');
+  
+  // Initialize selectedStatus from URL params or default to 'All'
+  const getInitialStatus = () => {
+    const filter = searchParams.get('filter');
+    if (!filter) return 'All';
+    
+    // Map filter categories to status
+    const filterMap = {
+      'All': 'All',
+      'offer-letter': 'offer-letter',
+      'application': 'application',
+      'visa': 'visa',
+      'trc': 'trc',
+      'Visa Received': 'Visa Received',
+      'Visa rejected': 'Visa rejected',
+      'Student Dropped': 'Student Dropped'
+    };
+    
+    return filterMap[filter] || 'All';
+  };
+  
+  const [selectedStatus, setSelectedStatus] = useState(getInitialStatus());
 
   useEffect(() => {
     fetchApplications();
   }, []);
+
+  // Update status when URL params change
+  useEffect(() => {
+    const filter = searchParams.get('filter');
+    if (filter) {
+      setSelectedStatus(getInitialStatus());
+    }
+  }, [searchParams]);
 
   const fetchApplications = async () => {
     try {
@@ -31,24 +61,50 @@ const Applications = () => {
 
   const statusOptions = [
     'All',
-    'Under review',
-    'Offer requested',
-    'Offer received',
-    'Application moved',
-    'Ministry submitted',
-    'Ministry approved',
-    'Fee paid',
-    'Visa documents issued',
-    'Visa submitted',
-    'Visa received',
-    'Student dropped'
+    'Under Review',
+    'Offer Requested',
+    'Offer Received',
+    'Application payment 1',
+    'Application Moved',
+    'Ministry Submitted',
+    'Exam issued',
+    'Application payment 2',
+    'Fee Paid',
+    'Visa Documents Issued',
+    'Visa Submitted',
+    'Visa Received',
+    'Full fee',
+    'Application payment 3',
+    'Visa rejected',
+    'Trc request',
+    'Trc approved',
+    'Trc rejected',
+    'Student Dropped'
   ];
 
   const filteredApplications = applications.filter(app => {
-    // Filter by status
+    // Filter by status or category
     if (selectedStatus !== 'All') {
-      const appStatus = app.status || 'Under review';
-      if (appStatus !== selectedStatus) {
+      const appStatus = app.status || 'Under Review';
+      
+      // Handle special categories
+      if (selectedStatus === 'offer-letter') {
+        if (!['Under Review', 'Offer Requested', 'Offer Received'].includes(appStatus)) {
+          return false;
+        }
+      } else if (selectedStatus === 'application') {
+        if (!['Application payment 1', 'Application Moved', 'Ministry Submitted', 'Exam issued', 'Application payment 2', 'Fee Paid'].includes(appStatus)) {
+          return false;
+        }
+      } else if (selectedStatus === 'visa') {
+        if (!['Visa Documents Issued', 'Visa Submitted', 'Full fee', 'Application payment 3'].includes(appStatus)) {
+          return false;
+        }
+      } else if (selectedStatus === 'trc') {
+        if (!['Trc request', 'Trc approved', 'Trc rejected'].includes(appStatus)) {
+          return false;
+        }
+      } else if (appStatus !== selectedStatus) {
         return false;
       }
     }
@@ -67,26 +123,34 @@ const Applications = () => {
   });
 
   const getStatusBadge = (app) => {
-    const currentStatus = app.status || 'Under review';
+    const currentStatus = app.status || 'Under Review';
     
     // Map statuses to badge classes
     const statusClassMap = {
-      'Under review': 'status-warning',
-      'Offer requested': 'status-info',
-      'Offer received': 'status-success',
-      'Application moved': 'status-info',
-      'Ministry submitted': 'status-info',
-      'Ministry approved': 'status-success',
-      'Fee paid': 'status-success',
-      'Visa documents issued': 'status-info',
-      'Visa submitted': 'status-info',
-      'Visa received': 'status-success',
-      'Student dropped': 'status-danger'
+      'Under Review': 'status-info',
+      'Offer Requested': 'status-info',
+      'Offer Received': 'status-success',
+      'Application payment 1': 'status-info',
+      'Application Moved': 'status-info',
+      'Ministry Submitted': 'status-info',
+      'Exam issued': 'status-info',
+      'Application payment 2': 'status-info',
+      'Fee Paid': 'status-success',
+      'Visa Documents Issued': 'status-info',
+      'Visa Submitted': 'status-info',
+      'Visa Received': 'status-success',
+      'Full fee': 'status-success',
+      'Application payment 3': 'status-success',
+      'Visa rejected': 'status-danger',
+      'Trc request': 'status-info',
+      'Trc approved': 'status-success',
+      'Trc rejected': 'status-danger',
+      'Student Dropped': 'status-danger'
     };
 
     return {
       text: currentStatus,
-      class: statusClassMap[currentStatus] || 'status-warning'
+      class: statusClassMap[currentStatus] || 'status-info'
     };
   };
 
@@ -170,22 +234,82 @@ const Applications = () => {
 
         {/* Status Filter */}
         <div className="filter-section">
-          <div className="filter-label">
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <path d="M2.25 4.5H15.75M4.5 9H13.5M6.75 13.5H11.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
-            Filter by Status:
+          <div className="filter-header">
+            <div className="filter-label">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M2 4H14M4 8H12M6 12H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+              <span>Filter by Status</span>
+            </div>
+            <select
+              className="filter-select"
+              value={selectedStatus === 'offer-letter' || selectedStatus === 'application' || selectedStatus === 'visa' || selectedStatus === 'trc' ? 'All' : selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+            >
+              <option value="All">All Statuses</option>
+              <optgroup label="Offer Letter Process">
+                <option value="Under Review">Under Review</option>
+                <option value="Offer Requested">Offer Requested</option>
+                <option value="Offer Received">Offer Received</option>
+              </optgroup>
+              <optgroup label="Application Process">
+                <option value="Application payment 1">Application payment 1</option>
+                <option value="Application Moved">Application Moved</option>
+                <option value="Ministry Submitted">Ministry Submitted</option>
+                <option value="Exam issued">Exam issued</option>
+                <option value="Application payment 2">Application payment 2</option>
+                <option value="Fee Paid">Fee Paid</option>
+              </optgroup>
+              <optgroup label="Visa Process">
+                <option value="Visa Documents Issued">Visa Documents Issued</option>
+                <option value="Visa Submitted">Visa Submitted</option>
+                <option value="Full fee">Full fee</option>
+                <option value="Application payment 3">Application payment 3</option>
+                <option value="Visa Received">Visa Received</option>
+                <option value="Visa rejected">Visa rejected</option>
+              </optgroup>
+              <optgroup label="TRC Process">
+                <option value="Trc request">Trc request</option>
+                <option value="Trc approved">Trc approved</option>
+                <option value="Trc rejected">Trc rejected</option>
+              </optgroup>
+              <optgroup label="Other">
+                <option value="Student Dropped">Student Dropped</option>
+              </optgroup>
+            </select>
           </div>
-          <div className="filter-buttons">
-            {statusOptions.map((status) => (
-              <button
-                key={status}
-                className={`filter-btn ${selectedStatus === status ? 'active' : ''}`}
-                onClick={() => setSelectedStatus(status)}
-              >
-                {status}
-              </button>
-            ))}
+          {/* Quick Filter Buttons */}
+          <div className="filter-quick-buttons">
+            <button
+              className={`filter-quick-btn ${selectedStatus === 'All' ? 'active' : ''}`}
+              onClick={() => setSelectedStatus('All')}
+            >
+              All
+            </button>
+            <button
+              className={`filter-quick-btn ${selectedStatus === 'offer-letter' ? 'active' : ''}`}
+              onClick={() => setSelectedStatus('offer-letter')}
+            >
+              Offer Letter
+            </button>
+            <button
+              className={`filter-quick-btn ${selectedStatus === 'application' ? 'active' : ''}`}
+              onClick={() => setSelectedStatus('application')}
+            >
+              Application
+            </button>
+            <button
+              className={`filter-quick-btn ${selectedStatus === 'visa' ? 'active' : ''}`}
+              onClick={() => setSelectedStatus('visa')}
+            >
+              Visa
+            </button>
+            <button
+              className={`filter-quick-btn ${selectedStatus === 'trc' ? 'active' : ''}`}
+              onClick={() => setSelectedStatus('trc')}
+            >
+              TRC
+            </button>
           </div>
         </div>
 

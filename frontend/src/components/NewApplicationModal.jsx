@@ -6,10 +6,12 @@ const NewApplicationModal = ({ isOpen, onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
-    phone: '',
+    nationality: '',
     passportNumber: '',
     aadharNumber: '',
     countryId: '',
+    intakeYear: '',
+    intakeId: '',
     courseId: '',
     universityId: '',
     documents: []
@@ -17,8 +19,10 @@ const NewApplicationModal = ({ isOpen, onClose, onSuccess }) => {
   const [countries, setCountries] = useState([]);
   const [courses, setCourses] = useState([]);
   const [universities, setUniversities] = useState([]);
+  const [intakes, setIntakes] = useState([]);
   const [filteredCourses, setFilteredCourses] = useState([]);
   const [filteredUniversities, setFilteredUniversities] = useState([]);
+  const [filteredIntakes, setFilteredIntakes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -30,12 +34,13 @@ const NewApplicationModal = ({ isOpen, onClose, onSuccess }) => {
       fetchCountries();
       fetchCourses();
       fetchUniversities();
+      fetchIntakes();
     }
   }, [isOpen]);
 
   useEffect(() => {
     if (formData.countryId) {
-      // Filter courses and universities by selected country
+      // Filter courses, universities, and intakes by selected country
       const country = countries.find(c => c._id === formData.countryId);
       if (country) {
         // Filter courses by countryId (can be ObjectId or populated object)
@@ -48,19 +53,28 @@ const NewApplicationModal = ({ isOpen, onClose, onSuccess }) => {
         const filteredUniversitiesList = universities.filter(u => 
           u.isActive && u.country === country.name
         );
+        // Filter intakes by countryId
+        const filteredIntakesList = intakes.filter(i => {
+          if (!i.isActive) return false;
+          const intakeCountryId = i.countryId?._id || i.countryId;
+          return intakeCountryId === formData.countryId || intakeCountryId?.toString() === formData.countryId;
+        });
         setFilteredCourses(filteredCoursesList);
         setFilteredUniversities(filteredUniversitiesList);
+        setFilteredIntakes(filteredIntakesList);
       } else {
         setFilteredCourses([]);
         setFilteredUniversities([]);
+        setFilteredIntakes([]);
       }
-      // Reset course and university selections when country changes
-      setFormData(prev => ({ ...prev, courseId: '', universityId: '' }));
+      // Reset intake, course and university selections when country changes
+      setFormData(prev => ({ ...prev, intakeId: '', courseId: '', universityId: '' }));
     } else {
       setFilteredCourses([]);
       setFilteredUniversities([]);
+      setFilteredIntakes([]);
     }
-  }, [formData.countryId, countries, courses, universities]);
+  }, [formData.countryId, countries, courses, universities, intakes]);
 
   const fetchCountries = async () => {
     try {
@@ -93,6 +107,17 @@ const NewApplicationModal = ({ isOpen, onClose, onSuccess }) => {
       }
     } catch (err) {
       console.error('Error fetching universities:', err);
+    }
+  };
+
+  const fetchIntakes = async () => {
+    try {
+      const response = await api.get('/intakes');
+      if (response.data.success) {
+        setIntakes(response.data.data.intakes || []);
+      }
+    } catch (err) {
+      console.error('Error fetching intakes:', err);
     }
   };
 
@@ -211,7 +236,7 @@ const NewApplicationModal = ({ isOpen, onClose, onSuccess }) => {
     setError('');
 
     // Validation
-    if (!formData.fullName || !formData.email || !formData.phone || !formData.aadharNumber || !formData.countryId || !formData.courseId || !formData.universityId) {
+    if (!formData.fullName || !formData.email || !formData.aadharNumber || !formData.countryId || !formData.intakeYear || !formData.intakeId || !formData.courseId || !formData.universityId) {
       setError('Please fill in all required fields');
       return;
     }
@@ -220,12 +245,6 @@ const NewApplicationModal = ({ isOpen, onClose, onSuccess }) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
       setError('Please enter a valid email address');
-      return;
-    }
-
-    // Validate phone (at least 10 digits)
-    if (formData.phone.replace(/\D/g, '').length < 10) {
-      setError('Please enter a valid phone number');
       return;
     }
 
@@ -243,10 +262,13 @@ const NewApplicationModal = ({ isOpen, onClose, onSuccess }) => {
       const payload = {
         fullName: formData.fullName.trim(),
         email: formData.email.trim(),
-        phone: formData.phone.trim(),
+        phone: '', // Phone number not required in partner interface
+        nationality: formData.nationality.trim() || null,
         aadharNumber: formData.aadharNumber.replace(/\s/g, ''),
         courseId: formData.courseId,
         universityId: formData.universityId,
+        intakeId: formData.intakeId,
+        intakeYear: formData.intakeYear.trim(),
         documents: formData.documents.map(doc => {
           if (doc.type === 'url') {
             return doc.url;
@@ -276,10 +298,12 @@ const NewApplicationModal = ({ isOpen, onClose, onSuccess }) => {
         setFormData({
           fullName: '',
           email: '',
-          phone: '',
+          nationality: '',
           passportNumber: '',
           aadharNumber: '',
           countryId: '',
+          intakeYear: '',
+          intakeId: '',
           courseId: '',
           universityId: '',
           documents: []
@@ -314,10 +338,12 @@ const NewApplicationModal = ({ isOpen, onClose, onSuccess }) => {
       setFormData({
         fullName: '',
         email: '',
-        phone: '',
+        nationality: '',
         passportNumber: '',
         aadharNumber: '',
         countryId: '',
+        intakeYear: '',
+        intakeId: '',
         courseId: '',
         universityId: '',
         documents: []
@@ -360,38 +386,35 @@ const NewApplicationModal = ({ isOpen, onClose, onSuccess }) => {
             />
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="email">
-                Email <span className="required">*</span>
-              </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="student@example.com"
-                required
-                disabled={submitting}
-              />
-            </div>
+          <div className="form-group">
+            <label htmlFor="email">
+              Email <span className="required">*</span>
+            </label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              placeholder="student@example.com"
+              required
+              disabled={submitting}
+            />
+          </div>
 
-            <div className="form-group">
-              <label htmlFor="phone">
-                Phone <span className="required">*</span>
-              </label>
-              <input
-                type="tel"
-                id="phone"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                placeholder="+91 1234567890"
-                required
-                disabled={submitting}
-              />
-            </div>
+          <div className="form-group">
+            <label htmlFor="nationality">
+              Nationality
+            </label>
+            <input
+              type="text"
+              id="nationality"
+              name="nationality"
+              value={formData.nationality}
+              onChange={handleChange}
+              placeholder="e.g., Indian, UAE, etc."
+              disabled={submitting}
+            />
           </div>
 
           <div className="form-row">
@@ -448,6 +471,53 @@ const NewApplicationModal = ({ isOpen, onClose, onSuccess }) => {
             </select>
           </div>
 
+          <div className="form-group">
+            <label htmlFor="intakeYear">
+              Intake Year <span className="required">*</span>
+            </label>
+            <input
+              type="text"
+              id="intakeYear"
+              name="intakeYear"
+              value={formData.intakeYear}
+              onChange={handleChange}
+              placeholder="e.g., 2024, 2025"
+              required
+              disabled={submitting || !formData.countryId}
+              maxLength="4"
+            />
+            <small>Enter the year for which you are applying (e.g., 2024, 2025)</small>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="intakeId">
+              Intake <span className="required">*</span>
+            </label>
+            <select
+              id="intakeId"
+              name="intakeId"
+              value={formData.intakeId}
+              onChange={handleChange}
+              required
+              disabled={submitting || loading || !formData.countryId || !formData.intakeYear || filteredIntakes.length === 0}
+            >
+              <option value="">
+                {!formData.countryId 
+                  ? 'Select a country first' 
+                  : !formData.intakeYear
+                  ? 'Enter intake year first'
+                  : filteredIntakes.length === 0 
+                  ? 'No intakes available for this country'
+                  : 'Select Intake'}
+              </option>
+              {filteredIntakes.map(intake => (
+                <option key={intake._id} value={intake._id}>
+                  {intake.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="form-row">
             <div className="form-group">
               <label htmlFor="courseId">
@@ -459,11 +529,13 @@ const NewApplicationModal = ({ isOpen, onClose, onSuccess }) => {
                 value={formData.courseId}
                 onChange={handleChange}
                 required
-                disabled={submitting || loading || !formData.countryId || filteredCourses.length === 0}
+                disabled={submitting || loading || !formData.countryId || !formData.intakeId || filteredCourses.length === 0}
               >
                 <option value="">
                   {!formData.countryId 
                     ? 'Select a country first' 
+                    : !formData.intakeId
+                    ? 'Select an intake first'
                     : filteredCourses.length === 0 
                     ? 'No courses available for this country'
                     : 'Select Course'}

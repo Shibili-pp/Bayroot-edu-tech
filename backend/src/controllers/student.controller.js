@@ -1,6 +1,7 @@
 const Student = require('../models/Student.model');
 const Course = require('../models/Course.model');
 const University = require('../models/University.model');
+const StatusTimeline = require('../models/StatusTimeline.model');
 const { sendSuccess, sendError } = require('../utils/response.util');
 const { formatStudentResponse } = require('../utils/studentResponse.util');
 const { logAudit, getClientIp } = require('../utils/audit.util');
@@ -18,11 +19,11 @@ const createStudent = async (req, res) => {
       return sendError(res, 'Only partners can create students', 403);
     }
 
-    const { fullName, email, phone, passportNumber, aadharNumber, courseId, universityId, documents } = req.body;
+    const { fullName, email, phone, nationality, passportNumber, aadharNumber, courseId, universityId, intakeId, intakeYear, documents } = req.body;
     
-    // Validate required fields
-    if (!fullName || !email || !phone || !aadharNumber || !courseId || !universityId) {
-      return sendError(res, 'Missing required fields: fullName, email, phone, aadharNumber, courseId, universityId', 400);
+    // Validate required fields (phone is optional in partner interface)
+    if (!fullName || !email || !aadharNumber || !courseId || !universityId) {
+      return sendError(res, 'Missing required fields: fullName, email, aadharNumber, courseId, universityId', 400);
     }
 
     // Validate course exists
@@ -77,6 +78,17 @@ const createStudent = async (req, res) => {
           fileType: doc.fileType,
           url: doc.url || `/api/files/${doc.fileId}`
         };
+      } else if (doc.fileId) {
+        // If it has fileId but no path (new format)
+        return {
+          fileId: doc.fileId,
+          filename: doc.filename,
+          originalName: doc.originalName,
+          s3Key: doc.s3Key,
+          s3Url: doc.s3Url,
+          fileType: doc.fileType,
+          url: doc.url
+        };
       } else if (doc.url) {
         // If it's an object with URL only
         return {
@@ -86,17 +98,27 @@ const createStudent = async (req, res) => {
           originalName: doc.originalName || doc.url.split('/').pop() || 'document'
         };
       }
-      return null;
-    }).filter(Boolean);
+      // If document doesn't have fileId, generate one
+      return {
+        fileId: uuidv4(),
+        filename: doc.filename,
+        originalName: doc.originalName || 'document',
+        fileType: doc.fileType || 'file',
+        url: doc.url || ''
+      };
+    }).filter(doc => doc && doc.fileId); // Ensure all documents have fileId
     
     const student = new Student({
       fullName,
       email,
-      phone,
+      phone: phone || '', // Phone is optional in partner interface
+      nationality: nationality || null,
       passportNumber: passportNumber || null,
       aadharNumber,
       courseId,
       universityId,
+      intakeId: intakeId || null,
+      intakeYear: intakeYear || null,
       partnerId: userId,
       documents: processedDocuments
     });
@@ -105,6 +127,7 @@ const createStudent = async (req, res) => {
     await student.populate('partnerId', 'companyName email');
     await student.populate('courseId', 'name description');
     await student.populate('universityId', 'name country');
+    await student.populate('intakeId', 'name');
 
     // Log audit
     await logAudit({
@@ -146,6 +169,7 @@ const getAllStudents = async (req, res) => {
       .populate('partnerId', 'companyName email')
       .populate('courseId', 'name description')
       .populate('universityId', 'name country')
+      .populate('intakeId', 'name')
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit);
@@ -193,7 +217,8 @@ const getStudent = async (req, res) => {
     const student = await Student.findOne(query)
       .populate('partnerId', 'companyName email')
       .populate('courseId', 'name description')
-      .populate('universityId', 'name country');
+      .populate('universityId', 'name country')
+      .populate('intakeId', 'name');
     if (!student) {
       return sendError(res, 'Student not found', 404);
     }
@@ -236,7 +261,7 @@ const updateStudent = async (req, res) => {
       return sendError(res, 'Student not found', 404);
     }
 
-    const { fullName, email, phone, passportNumber, aadharNumber, courseId, universityId, documents, status } = req.body;
+    const { fullName, email, phone, nationality, passportNumber, aadharNumber, courseId, universityId, intakeId, intakeYear, documents, status } = req.body;
     
     // Update fields (encryption handled by model hooks)
     if (fullName !== undefined) student.fullName = fullName;
@@ -247,19 +272,52 @@ const updateStudent = async (req, res) => {
     if (status !== undefined) {
       // Validate status
       const validStatuses = [
-        'Under review',
-        'Offer requested',
-        'Offer received',
-        'Application moved',
-        'Ministry submitted',
-        'Ministry approved',
-        'Fee paid',
-        'Visa documents issued',
-        'Visa submitted',
-        'Visa received',
-        'Student dropped'
+        'Under Review',
+        'Offer Requested',
+        'Offer Received',
+        'Application payment 1',
+        'Application Moved',
+        'Ministry Submitted',
+        'Exam issued',
+        'Application payment 2',
+        'Fee Paid',
+        'Visa Documents Issued',
+        'Visa Submitted',
+        'Visa Received',
+        'Full fee',
+        'Application payment 3',
+        'Visa rejected',
+        'Trc request',
+        'Trc approved',
+        'Trc rejected',
+        'Student Dropped'
       ];
       if (validStatuses.includes(status)) {
+        // Check if status is actually changing
+        if (student.status !== status) {
+          // Check timeline rule for this status transition
+          const timelineRule = await StatusTimeline.findOne({
+            fromStatus: student.status,
+            toStatus: status,
+            isActive: true
+          });
+
+          if (timelineRule && timelineRule.minHours > 0) {
+            // Check if enough time has passed since last status update
+            const statusUpdatedAt = student.updatedAt || student.createdAt;
+            const now = new Date();
+            const hoursSinceUpdate = (now - new Date(statusUpdatedAt)) / (1000 * 60 * 60);
+
+            if (hoursSinceUpdate < timelineRule.minHours) {
+              const remainingHours = Math.ceil(timelineRule.minHours - hoursSinceUpdate);
+              return sendError(
+                res,
+                `Status cannot be changed from "${student.status}" to "${status}" yet. Please wait ${remainingHours} more hour${remainingHours > 1 ? 's' : ''}.`,
+                400
+              );
+            }
+          }
+        }
         student.status = status;
       } else {
         return sendError(res, 'Invalid status value', 400);
@@ -278,6 +336,21 @@ const updateStudent = async (req, res) => {
         return sendError(res, 'Invalid or inactive university', 400);
       }
       student.universityId = universityId;
+    }
+    if (intakeId !== undefined) {
+      const Intake = require('../models/Intake.model');
+      if (intakeId) {
+        const intake = await Intake.findById(intakeId);
+        if (!intake || !intake.isActive) {
+          return sendError(res, 'Invalid or inactive intake', 400);
+        }
+        student.intakeId = intakeId;
+      } else {
+        student.intakeId = null;
+      }
+    }
+    if (intakeYear !== undefined) {
+      student.intakeYear = intakeYear || null;
     }
     if (documents !== undefined && Array.isArray(documents)) {
       const processedDocuments = documents.map(doc => {
@@ -315,6 +388,7 @@ const updateStudent = async (req, res) => {
     await student.populate('partnerId', 'companyName email');
     await student.populate('courseId', 'name description');
     await student.populate('universityId', 'name country');
+    await student.populate('intakeId', 'name');
 
     // Log audit
     await logAudit({

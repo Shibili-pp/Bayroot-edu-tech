@@ -29,6 +29,13 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  text-decoration: none;
+}
+
+.header-logo-mobile:hover {
+  opacity: 0.8;
 }
 
 .header-logo-img {
@@ -78,6 +85,13 @@
   align-items: center;
   justify-content: center;
   width: 100%;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  text-decoration: none;
+}
+
+.logo-container:hover {
+  opacity: 0.8;
 }
 
 .sidebar-logo {

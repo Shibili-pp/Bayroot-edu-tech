@@ -1,8 +1,123 @@
 const Comment = require('../models/Comment.model');
 const Student = require('../models/Student.model');
+const Admin = require('../models/Admin.model');
+const Partner = require('../models/Partner.model');
 const { sendSuccess, sendError } = require('../utils/response.util');
 const { logAudit, getClientIp } = require('../utils/audit.util');
+const { sendCommentNotificationEmail } = require('../utils/email.util');
 const { v4: uuidv4 } = require('uuid');
+
+// Get all unread admin comments for partner (bulk endpoint)
+const getUnreadAdminComments = async (req, res) => {
+  try {
+    const userId = req.user.userId || req.user.id;
+    const role = req.user.role;
+    const limit = parseInt(req.query.limit) || 10;
+
+    // Only partners can use this endpoint
+    if (role !== 'PARTNER') {
+      return sendError(res, 'This endpoint is only available for partners', 403);
+    }
+
+    // Get all students for this partner
+    const students = await Student.find({ 
+      partnerId: userId, 
+      isDeleted: false 
+    }).select('_id fullName');
+
+    if (students.length === 0) {
+      return sendSuccess(res, { comments: [] }, 'No unread comments found');
+    }
+
+    const studentIds = students.map(s => s._id);
+
+    // Get all unread comments from admin for these students
+    const unreadComments = await Comment.find({
+      studentId: { $in: studentIds },
+      role: 'ADMIN',
+      isRead: false
+    })
+      .populate('authorId', 'name email')
+      .populate('studentId', 'fullName')
+      .sort({ createdAt: -1 }) // Latest first
+      .limit(limit);
+
+    // Format response with student info
+    const formattedComments = unreadComments.map(comment => {
+      const student = students.find(s => s._id.toString() === comment.studentId._id.toString());
+      return {
+        id: comment._id,
+        commentId: comment._id,
+        studentId: comment.studentId._id,
+        studentName: student?.fullName || comment.studentId.fullName || 'Unknown',
+        message: comment.message,
+        messagePreview: comment.message.length > 80 
+          ? comment.message.substring(0, 80) + '...' 
+          : comment.message,
+        createdAt: comment.createdAt,
+        authorName: comment.authorId?.name || 'Admin',
+        hasDocuments: comment.documents && comment.documents.length > 0,
+        isReply: !!comment.parentCommentId
+      };
+    });
+
+    return sendSuccess(res, { comments: formattedComments }, 'Unread comments retrieved successfully');
+  } catch (error) {
+    console.error('Error fetching unread admin comments:', error);
+    return sendError(res, error.message, 500);
+  }
+};
+
+// Get all unread partner comments for admin (bulk endpoint)
+const getUnreadPartnerComments = async (req, res) => {
+  try {
+    const role = req.user.role;
+    const limit = parseInt(req.query.limit) || 10;
+
+    // Only admins can use this endpoint
+    if (role !== 'ADMIN') {
+      return sendError(res, 'This endpoint is only available for admins', 403);
+    }
+
+    // Get all unread comments from partners (for all students)
+    const unreadComments = await Comment.find({
+      role: 'PARTNER',
+      isRead: false
+    })
+      .populate('authorId', 'companyName email')
+      .populate('studentId', 'fullName partnerId')
+      .populate('studentId.partnerId', 'companyName')
+      .sort({ createdAt: -1 }) // Latest first
+      .limit(limit);
+
+    // Format response with student and partner info
+    const formattedComments = unreadComments.map(comment => {
+      const student = comment.studentId;
+      const partner = student?.partnerId;
+      
+      return {
+        id: comment._id,
+        commentId: comment._id,
+        studentId: student?._id || student?.id,
+        studentName: student?.fullName || 'Unknown',
+        partnerName: partner?.companyName || comment.authorId?.companyName || 'Partner',
+        message: comment.message,
+        messagePreview: comment.message.length > 80 
+          ? comment.message.substring(0, 80) + '...' 
+          : comment.message,
+        createdAt: comment.createdAt,
+        authorName: comment.authorId?.companyName || 'Partner',
+        hasDocuments: comment.documents && comment.documents.length > 0,
+        isReply: !!comment.parentCommentId
+      };
+    });
+
+    return sendSuccess(res, { comments: formattedComments }, 'Unread comments retrieved successfully');
+  } catch (error) {
+    console.error('Error fetching unread partner comments:', error);
+    return sendError(res, error.message, 500);
+  }
+};
 
 // Get all comments for a student
 const getComments = async (req, res) => {
@@ -131,6 +246,48 @@ const createComment = async (req, res) => {
     // Populate author info
     await comment.populate('authorId', role === 'ADMIN' ? 'name email' : 'companyName email');
 
+    // Get student info with partner populated for email notification
+    const studentWithPartner = await Student.findById(studentId)
+      .populate('partnerId', 'companyName email')
+      .select('fullName partnerId');
+
+    // Send email notification
+    try {
+      if (role === 'PARTNER') {
+        // Partner sent comment → notify admin
+        // Get all admin emails
+        const admins = await Admin.find({}).select('email name');
+        const commenterName = comment.authorId?.companyName || 'Partner';
+        
+        // Send email to each admin
+        for (const admin of admins) {
+          await sendCommentNotificationEmail(admin.email, {
+            studentName: studentWithPartner.fullName,
+            commenterName: commenterName,
+            commenterRole: 'PARTNER',
+            message: message.trim(),
+            isReply: !!parentCommentId
+          });
+        }
+      } else if (role === 'ADMIN') {
+        // Admin sent comment → notify partner (who created the student)
+        if (studentWithPartner.partnerId && studentWithPartner.partnerId.email) {
+          const commenterName = comment.authorId?.name || 'Bayroot Admin';
+          
+          await sendCommentNotificationEmail(studentWithPartner.partnerId.email, {
+            studentName: studentWithPartner.fullName,
+            commenterName: commenterName,
+            commenterRole: 'ADMIN',
+            message: message.trim(),
+            isReply: !!parentCommentId
+          });
+        }
+      }
+    } catch (emailError) {
+      // Log email error but don't fail the comment creation
+      console.error('Failed to send comment notification email:', emailError);
+    }
+
     // Log audit
     await logAudit({
       userId,
@@ -256,10 +413,14 @@ const deleteComment = async (req, res) => {
 
 module.exports = {
   getComments,
+  getUnreadAdminComments,
+  getUnreadPartnerComments,
   createComment,
   updateComment,
   deleteComment
 };
+
+
 
 
 

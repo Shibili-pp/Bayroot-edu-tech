@@ -113,6 +113,36 @@ const AdminLayout = ({ children }) => {
       )
     },
     { 
+      path: '/admin/intakes', 
+      label: 'Intakes', 
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M3 2.25H15C15.4142 2.25 15.75 2.58579 15.75 3V15C15.75 15.4142 15.4142 15.75 15 15.75H3C2.58579 15.75 2.25 15.4142 2.25 15V3C2.25 2.58579 2.58579 2.25 3 2.25Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M3 6.75H15M6.75 2.25V6.75M11.25 2.25V6.75" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      )
+    },
+    { 
+      path: '/admin/announcements', 
+      label: 'Announcements', 
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M9 2.25C6.92893 2.25 5.25 3.92893 5.25 6V9.75L3.75 12.75H14.25L12.75 9.75V6C12.75 3.92893 11.0711 2.25 9 2.25Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M6.75 15.75C6.75 16.5784 7.42157 17.25 8.25 17.25H9.75C10.5784 17.25 11.25 16.5784 11.25 15.75" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      )
+    },
+    { 
+      path: '/admin/update-timeline', 
+      label: 'Update Timeline', 
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M9 3V15M3 9H15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          <path d="M9 1.5C4.85786 1.5 1.5 4.85786 1.5 9C1.5 13.1421 4.85786 16.5 9 16.5C13.1421 16.5 16.5 13.1421 16.5 9C16.5 4.85786 13.1421 1.5 9 1.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      )
+    },
+    { 
       path: '/admin/settings', 
       label: 'Settings', 
       icon: (

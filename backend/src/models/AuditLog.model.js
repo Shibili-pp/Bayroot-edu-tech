@@ -41,6 +41,12 @@ const auditLogSchema = new mongoose.Schema({
       'CREATE_COURSE',
       'UPDATE_COURSE',
       'DELETE_COURSE',
+      'CREATE_INTAKE',
+      'UPDATE_INTAKE',
+      'DELETE_INTAKE',
+      'CREATE_STATUS_TIMELINE',
+      'UPDATE_STATUS_TIMELINE',
+      'DELETE_STATUS_TIMELINE',
       'CREATE_COMMENT',
       'UPDATE_COMMENT',
       'DELETE_COMMENT',
@@ -54,7 +60,7 @@ const auditLogSchema = new mongoose.Schema({
   },
   targetModel: {
     type: String,
-    enum: ['Student', 'File', 'Announcement', 'University', 'Country', 'Course', 'Comment']
+    enum: ['Student', 'File', 'Announcement', 'University', 'Country', 'Course', 'Intake', 'Comment', 'StatusTimeline']
   },
   metadata: {
     type: mongoose.Schema.Types.Mixed,

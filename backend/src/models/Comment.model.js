@@ -68,8 +68,12 @@ const commentSchema = new mongoose.Schema({
 // Index for faster queries
 commentSchema.index({ studentId: 1, createdAt: -1 });
 commentSchema.index({ parentCommentId: 1 });
+// Index for bulk unread admin comments query
+commentSchema.index({ studentId: 1, role: 1, isRead: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Comment', commentSchema);
+
+
 
 
 

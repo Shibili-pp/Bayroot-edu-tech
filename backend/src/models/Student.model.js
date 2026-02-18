@@ -20,8 +20,9 @@ const studentSchema = new mongoose.Schema({
   },
   phone: {
     type: String,
-    required: true,
-    trim: true
+    required: false,
+    trim: true,
+    default: ''
     // Stored encrypted
   },
   passportNumber: {
@@ -29,6 +30,11 @@ const studentSchema = new mongoose.Schema({
     trim: true,
     default: null
     // Optional, stored encrypted
+  },
+  nationality: {
+    type: String,
+    trim: true,
+    default: null
   },
   aadharNumber: {
     type: String,
@@ -46,6 +52,16 @@ const studentSchema = new mongoose.Schema({
     ref: 'University',
     required: true
   },
+  intakeId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Intake',
+    required: false
+  },
+  intakeYear: {
+    type: String,
+    trim: true,
+    required: false
+  },
   partnerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Partner',
@@ -54,26 +70,33 @@ const studentSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: [
-      'Under review',
-      'Offer requested',
-      'Offer received',
-      'Application moved',
-      'Ministry submitted',
-      'Ministry approved',
-      'Fee paid',
-      'Visa documents issued',
-      'Visa submitted',
-      'Visa received',
-      'Student dropped'
+      'Under Review',
+      'Offer Requested',
+      'Offer Received',
+      'Application payment 1',
+      'Application Moved',
+      'Ministry Submitted',
+      'Exam issued',
+      'Application payment 2',
+      'Fee Paid',
+      'Visa Documents Issued',
+      'Visa Submitted',
+      'Visa Received',
+      'Full fee',
+      'Application payment 3',
+      'Visa rejected',
+      'Trc request',
+      'Trc approved',
+      'Trc rejected',
+      'Student Dropped'
     ],
-    default: 'Under review',
+    default: 'Under Review',
     trim: true
   },
   documents: [{
     fileId: {
       type: String,
-      required: true,
-      unique: true
+      required: true
     },
     filename: String,
     originalName: String,

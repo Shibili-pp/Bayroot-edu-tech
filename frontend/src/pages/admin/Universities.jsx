@@ -14,8 +14,10 @@ const Universities = () => {
     name: '',
     country: '',
     location: '',
-    description: ''
+    description: '',
+    requiredDocuments: []
   });
+  const [newDocumentName, setNewDocumentName] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -58,7 +60,8 @@ const Universities = () => {
         name: university.name || '',
         country: university.country || '',
         location: university.location || '',
-        description: university.description || ''
+        description: university.description || '',
+        requiredDocuments: university.requiredDocuments || []
       });
     } else {
       setEditingUniversity(null);
@@ -66,9 +69,11 @@ const Universities = () => {
         name: '',
         country: '',
         location: '',
-        description: ''
+        description: '',
+        requiredDocuments: []
       });
     }
+    setNewDocumentName('');
     setError('');
     setShowModal(true);
   };
@@ -80,9 +85,28 @@ const Universities = () => {
       name: '',
       country: '',
       location: '',
-      description: ''
+      description: '',
+      requiredDocuments: []
     });
+    setNewDocumentName('');
     setError('');
+  };
+
+  const handleAddDocument = () => {
+    if (newDocumentName.trim() && !formData.requiredDocuments.includes(newDocumentName.trim())) {
+      setFormData(prev => ({
+        ...prev,
+        requiredDocuments: [...prev.requiredDocuments, newDocumentName.trim()]
+      }));
+      setNewDocumentName('');
+    }
+  };
+
+  const handleRemoveDocument = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      requiredDocuments: prev.requiredDocuments.filter((_, i) => i !== index)
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -211,6 +235,14 @@ const Universities = () => {
                       {university.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </div>
+                  {university.requiredDocuments && university.requiredDocuments.length > 0 && (
+                    <div className="info-row">
+                      <span className="label">Required Documents:</span>
+                      <span className="value">
+                        {university.requiredDocuments.join(', ')}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -291,6 +323,73 @@ const Universities = () => {
                     rows="4"
                     placeholder="Enter university description..."
                   />
+                </div>
+                <div className="form-group">
+                  <label>Required Documents</label>
+                  <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                    <input
+                      type="text"
+                      value={newDocumentName}
+                      onChange={(e) => setNewDocumentName(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddDocument();
+                        }
+                      }}
+                      placeholder="e.g., Passport, Certificate, etc."
+                      disabled={submitting}
+                      style={{ flex: 1 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddDocument}
+                      disabled={submitting || !newDocumentName.trim()}
+                      className="btn-primary"
+                      style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
+                    >
+                      Add
+                    </button>
+                  </div>
+                  {formData.requiredDocuments && formData.requiredDocuments.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem' }}>
+                      {formData.requiredDocuments.map((doc, index) => (
+                        <div
+                          key={index}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            padding: '0.375rem 0.75rem',
+                            background: '#f3f4f6',
+                            borderRadius: '6px',
+                            fontSize: '0.875rem'
+                          }}
+                        >
+                          <span>{doc}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveDocument(index)}
+                            disabled={submitting}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: '#dc2626',
+                              cursor: 'pointer',
+                              padding: '0',
+                              fontSize: '1rem',
+                              lineHeight: '1'
+                            }}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <small style={{ color: '#6b7280', fontSize: '0.75rem', marginTop: '0.5rem', display: 'block' }}>
+                    Add document types that partners need to upload for this university. Add "General" to allow bulk upload option.
+                  </small>
                 </div>
                 <div className="modal-actions">
                   <button type="button" onClick={handleCloseModal} disabled={submitting} className="btn-cancel">

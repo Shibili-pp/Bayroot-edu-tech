@@ -11,7 +11,9 @@ const fileRoutes = require('./routes/file.routes');
 const courseRoutes = require('./routes/course.routes');
 const universityRoutes = require('./routes/university.routes');
 const countryRoutes = require('./routes/country.routes');
+const intakeRoutes = require('./routes/intake.routes');
 const announcementRoutes = require('./routes/announcement.routes');
+const statusTimelineRoutes = require('./routes/statusTimeline.routes');
 
 const app = express();
 
@@ -109,7 +111,9 @@ app.use('/api/files', fileRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/universities', universityRoutes);
 app.use('/api/countries', countryRoutes);
+app.use('/api/intakes', intakeRoutes);
 app.use('/api/announcements', announcementRoutes);
+app.use('/api/status-timeline', statusTimelineRoutes);
 
 // 404 handler
 app.use((req, res) => {

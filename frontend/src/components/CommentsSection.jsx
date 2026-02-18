@@ -16,9 +16,15 @@ const CommentsSection = ({ studentId, userRole }) => {
   const commentsEndRef = useRef(null);
 
   useEffect(() => {
-    if (studentId) {
-      fetchComments();
-    }
+    if (!studentId) return;
+    
+    const abortController = new AbortController();
+    
+    fetchComments(abortController.signal);
+    
+    return () => {
+      abortController.abort();
+    };
   }, [studentId]);
 
   // Removed auto-scroll to bottom - user doesn't want automatic scrolling
@@ -27,14 +33,32 @@ const CommentsSection = ({ studentId, userRole }) => {
   //   commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   // }, [comments]);
 
-  const fetchComments = async () => {
+  const fetchComments = async (signal) => {
     try {
       setLoading(true);
-      const response = await api.get(`/comments/student/${studentId}`);
+      const response = await api.get(`/comments/student/${studentId}`, { signal });
       if (response.data.success) {
         setComments(response.data.data.comments || []);
       }
     } catch (err) {
+      // Ignore abort errors
+      if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') {
+        return;
+      }
+      
+      // Handle rate limit errors gracefully
+      if (err.response?.status === 429) {
+        console.warn('Rate limit reached for comments. Retrying...');
+        setError('Rate limit exceeded. Comments will load automatically.');
+        // Retry after delay
+        setTimeout(() => {
+          if (!signal?.aborted) {
+            fetchComments(signal);
+          }
+        }, 2000);
+        return;
+      }
+      
       console.error('Error fetching comments:', err);
       setError('Failed to load comments');
     } finally {

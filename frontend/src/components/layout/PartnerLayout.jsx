@@ -82,9 +82,9 @@ const PartnerLayout = ({ children }) => {
       <aside className={`layout-sidebar ${sidebarOpen ? 'open' : ''}`}>
         {/* Logo Section */}
         <div className="sidebar-header">
-          <div className="logo-container">
+          <Link to="/partner/dashboard" className="logo-container">
             <img src={logo} alt="Bayroot Logo" className="sidebar-logo" />
-          </div>
+          </Link>
         </div>
 
         {/* Navigation Menu */}
@@ -150,9 +150,9 @@ const PartnerLayout = ({ children }) => {
             </svg>
           </button>
           
-          <div className="header-logo-mobile">
+          <Link to="/partner/dashboard" className="header-logo-mobile">
             <img src={logo} alt="Bayroot Logo" className="header-logo-img" />
-          </div>
+          </Link>
 
           <div className="header-search">
             <svg className="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">

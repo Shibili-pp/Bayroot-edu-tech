@@ -18,19 +18,23 @@ const formatStudentResponse = (student, role) => {
       fullName: studentObj.fullName,
       email: decrypt(studentObj.email),
       phone: decrypt(studentObj.phone),
+      nationality: studentObj.nationality || null,
       passportNumber: studentObj.passportNumber ? decrypt(studentObj.passportNumber) : null,
       aadharNumber: decrypt(studentObj.aadharNumber),
       courseId: studentObj.courseId,
       course: studentObj.course || null,
       universityId: studentObj.universityId,
       university: studentObj.university || null,
+      intakeId: studentObj.intakeId,
+      intake: studentObj.intake || null,
+      intakeYear: studentObj.intakeYear || null,
       partnerId: studentObj.partnerId,
       partner: studentObj.partnerId ? {
         id: studentObj.partnerId._id || studentObj.partnerId.id,
         companyName: studentObj.partnerId.companyName,
         email: studentObj.partnerId.email
       } : null,
-      status: studentObj.status || 'Under review',
+      status: studentObj.status || 'Under Review',
       documents: studentObj.documents || [],
       offerLetter: studentObj.offerLetter || null,
       createdAt: studentObj.createdAt
@@ -44,14 +48,18 @@ const formatStudentResponse = (student, role) => {
       fullName: studentObj.fullName,
       email: decrypt(studentObj.email), // Show full email
       phone: decrypt(studentObj.phone), // Show full phone number
+      nationality: studentObj.nationality || null,
       passportNumber: studentObj.passportNumber ? decrypt(studentObj.passportNumber) : null, // Show full passport number
       aadharNumber: decrypt(studentObj.aadharNumber), // Show full Aadhar/GCC ID
       courseId: studentObj.courseId,
       course: studentObj.course || null,
       universityId: studentObj.universityId,
       university: studentObj.university || null,
+      intakeId: studentObj.intakeId,
+      intake: studentObj.intake || null,
+      intakeYear: studentObj.intakeYear || null,
       partnerId: studentObj.partnerId,
-      status: studentObj.status || 'Under review',
+      status: studentObj.status || 'Under Review',
       documents: studentObj.documents || [],
       offerLetter: studentObj.offerLetter || null,
       createdAt: studentObj.createdAt

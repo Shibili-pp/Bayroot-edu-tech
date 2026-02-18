@@ -10,6 +10,12 @@ const { generalRateLimiter } = require('../middlewares/rateLimit.middleware');
 router.use(generalRateLimiter);
 router.use(verifyToken);
 
+// Get all unread admin comments for partner (bulk endpoint)
+router.get('/unread/admin', authorize('PARTNER'), commentController.getUnreadAdminComments);
+
+// Get all unread partner comments for admin (bulk endpoint)
+router.get('/unread/partner', authorize('ADMIN'), commentController.getUnreadPartnerComments);
+
 // Get all comments for a student
 router.get('/student/:studentId', authorize('PARTNER', 'ADMIN'), commentController.getComments);
 
@@ -23,6 +29,8 @@ router.put('/:commentId', authorize('PARTNER', 'ADMIN'), commentController.updat
 router.delete('/:commentId', authorize('PARTNER', 'ADMIN'), commentController.deleteComment);
 
 module.exports = router;
+
+
 
 
 

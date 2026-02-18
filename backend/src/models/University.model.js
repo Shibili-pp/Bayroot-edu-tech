@@ -20,6 +20,10 @@ const universitySchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  requiredDocuments: [{
+    type: String,
+    trim: true
+  }],
   isActive: {
     type: Boolean,
     default: true

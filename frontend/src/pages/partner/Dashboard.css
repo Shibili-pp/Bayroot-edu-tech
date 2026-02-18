@@ -13,47 +13,69 @@
 
 /* Welcome Section */
 .welcome-section {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
   background: linear-gradient(135deg, #32cd32 0%, #228b22 100%);
-  padding: 1.5rem;
+  padding: 1rem 1.25rem;
   border-radius: 8px;
   color: white;
 }
 
 .welcome-section h1 {
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 600;
   color: white;
-  margin: 0 0 0.5rem 0;
+  margin: 0 0 0.25rem 0;
   letter-spacing: -0.01em;
   line-height: 1.3;
 }
 
 .welcome-subtitle {
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   color: rgba(255, 255, 255, 0.95);
   margin: 0;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 /* Statistics Grid */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.875rem;
+  margin-bottom: 1.25rem;
+}
+
+@media (max-width: 1200px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .stat-card {
   background: white;
   border-radius: 8px;
-  padding: 1rem;
+  padding: 0.875rem;
   display: flex;
   align-items: center;
-  gap: 0.875rem;
+  gap: 0.75rem;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   border: 1px solid #e5e7eb;
   transition: all 0.2s;
+}
+
+.stat-card.clickable {
+  cursor: pointer;
+}
+
+.stat-card.clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
+  border-color: #d1d5db;
 }
 
 .stat-card:hover {
@@ -85,10 +107,12 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  color: white;
 }
 
-.stat-icon {
-  color: white;
+.stat-icon svg {
+  width: 20px;
+  height: 20px;
 }
 
 .stat-icon.total-applications {
@@ -105,6 +129,18 @@
 
 .stat-icon.visa-process {
   background: #06b6d4;
+}
+
+.stat-icon.visa-received {
+  background: #10b981;
+}
+
+.stat-icon.visa-rejected {
+  background: #ef4444;
+}
+
+.stat-icon.trc-process {
+  background: #8b5cf6;
 }
 
 .stat-icon.student-file-completed {
@@ -206,9 +242,18 @@
   transition: all 0.2s;
 }
 
+.action-item.clickable {
+  cursor: pointer;
+}
+
 .action-item:hover {
   background: #f5f5f5;
   border-color: #e5e7eb;
+}
+
+.action-item.clickable:hover {
+  background: #eff6ff;
+  border-color: #2563eb;
 }
 
 .action-avatar {
@@ -241,6 +286,11 @@
   color: #6b7280;
   margin-bottom: 0.5rem;
   line-height: 1.4;
+}
+
+.comment-preview {
+  color: #374151;
+  font-style: italic;
 }
 
 .action-required {

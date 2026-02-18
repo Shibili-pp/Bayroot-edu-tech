@@ -58,7 +58,9 @@ const StudentDetail = () => {
     }
   }, [student, activeSection]);
 
-  const fetchStudentDetails = async (signal) => {
+  const fetchStudentDetails = async (signal, retryCount = 0) => {
+    let isRetrying = false;
+    
     try {
       setLoading(true);
       setError('');
@@ -73,15 +75,33 @@ const StudentDetail = () => {
       if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') {
         return;
       }
-      // Don't show error for rate limit - it's temporary
+      
+      // Handle rate limit errors with retry logic
       if (err.response?.status === 429) {
-        console.warn('Rate limit reached. Please wait a moment and refresh.');
-        return;
+        if (retryCount < 2) {
+          // Retry after a delay (exponential backoff)
+          isRetrying = true;
+          const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s
+          console.warn(`Rate limit reached. Retrying in ${delay/1000} seconds...`);
+          setTimeout(() => {
+            if (!signal?.aborted) {
+              fetchStudentDetails(signal, retryCount + 1);
+            }
+          }, delay);
+          return;
+        } else {
+          // Max retries reached, show error
+          setError('Rate limit exceeded. Please wait a moment and refresh the page.');
+        }
+      } else {
+        console.error('Error fetching student details:', err);
+        setError(err.response?.data?.message || 'Failed to load student details');
       }
-      console.error('Error fetching student details:', err);
-      setError(err.response?.data?.message || 'Failed to load student details');
     } finally {
-      setLoading(false);
+      // Only set loading to false if we're not retrying
+      if (!isRetrying && !signal?.aborted) {
+        setLoading(false);
+      }
     }
   };
 
@@ -98,36 +118,52 @@ const StudentDetail = () => {
   };
 
   const statusOptions = [
-    'Under review',
-    'Offer requested',
-    'Offer received',
-    'Application moved',
-    'Ministry submitted',
-    'Ministry approved',
-    'Fee paid',
-    'Visa documents issued',
-    'Visa submitted',
-    'Visa received',
-    'Student dropped'
+    'Under Review',
+    'Offer Requested',
+    'Offer Received',
+    'Application payment 1',
+    'Application Moved',
+    'Ministry Submitted',
+    'Exam issued',
+    'Application payment 2',
+    'Fee Paid',
+    'Visa Documents Issued',
+    'Visa Submitted',
+    'Visa Received',
+    'Full fee',
+    'Application payment 3',
+    'Visa rejected',
+    'Trc request',
+    'Trc approved',
+    'Trc rejected',
+    'Student Dropped'
   ];
 
   const getStatusBadge = () => {
     if (!student) return { text: 'Unknown', class: 'status-pending' };
-    const currentStatus = student.status || 'Under review';
+    const currentStatus = student.status || 'Under Review';
     
     // Map statuses to badge classes
     const statusClassMap = {
-      'Under review': 'status-warning',
-      'Offer requested': 'status-info',
-      'Offer received': 'status-success',
-      'Application moved': 'status-info',
-      'Ministry submitted': 'status-info',
-      'Ministry approved': 'status-success',
-      'Fee paid': 'status-success',
-      'Visa documents issued': 'status-info',
-      'Visa submitted': 'status-info',
-      'Visa received': 'status-success',
-      'Student dropped': 'status-danger'
+      'Under Review': 'status-warning',
+      'Offer Requested': 'status-info',
+      'Offer Received': 'status-success',
+      'Application payment 1': 'status-info',
+      'Application Moved': 'status-info',
+      'Ministry Submitted': 'status-info',
+      'Exam issued': 'status-info',
+      'Application payment 2': 'status-info',
+      'Fee Paid': 'status-success',
+      'Visa Documents Issued': 'status-info',
+      'Visa Submitted': 'status-info',
+      'Visa Received': 'status-success',
+      'Full fee': 'status-success',
+      'Application payment 3': 'status-success',
+      'Visa rejected': 'status-danger',
+      'Trc request': 'status-info',
+      'Trc approved': 'status-success',
+      'Trc rejected': 'status-danger',
+      'Student Dropped': 'status-danger'
     };
 
     return {
@@ -138,11 +174,11 @@ const StudentDetail = () => {
 
   const getOfferLetterStatus = () => {
     if (!student) return { text: 'Pending', class: 'status-pending' };
-    const currentStatus = student.status || 'Under review';
+    const currentStatus = student.status || 'Under Review';
     
-    const offerLetterStatuses = ['Offer requested', 'Offer received'];
+    const offerLetterStatuses = ['Offer Requested', 'Offer Received'];
     
-    if (currentStatus === 'Under review') {
+    if (currentStatus === 'Under Review') {
       return { text: 'Pending', class: 'status-pending' };
     } else if (offerLetterStatuses.includes(currentStatus)) {
       return { text: 'Received', class: 'status-submitted' };
@@ -153,26 +189,26 @@ const StudentDetail = () => {
 
   const getApplicationProcessStatus = () => {
     if (!student) return { text: 'Pending', class: 'status-pending' };
-    const currentStatus = student.status || 'Under review';
+    const currentStatus = student.status || 'Under Review';
     
-    const applicationProcessStatuses = ['Application moved', 'Ministry submitted', 'Ministry approved', 'Fee paid'];
+    const applicationProcessStatuses = ['Application payment 1', 'Application Moved', 'Ministry Submitted', 'Exam issued', 'Application payment 2', 'Fee Paid'];
     
     // If status has progressed beyond offer letter stage, it's received
-    if (!['Under review', 'Offer requested', 'Offer received'].includes(currentStatus)) {
+    if (!['Under Review', 'Offer Requested', 'Offer Received'].includes(currentStatus)) {
       return { text: 'Received', class: 'status-submitted' };
     }
     
-    // If status is "Offer received" and there are documents, 
+    // If status is "Offer Received" and there are documents, 
     // partner likely submitted application process (documents indicate submission)
     // Partner submits Application Process Request by uploading documents (passport, certificate, video, image)
-    // So if status is Offer received (meaning initial application is done) and documents exist,
+    // So if status is Offer Received (meaning initial application is done) and documents exist,
     // it means application process request was likely submitted
-    if (currentStatus === 'Offer received' && student.documents && student.documents.length > 0) {
+    if (currentStatus === 'Offer Received' && student.documents && student.documents.length > 0) {
       return { text: 'Received', class: 'status-submitted' };
     }
     
-    // Also check if status is "Offer requested" and documents exist (more lenient)
-    if (currentStatus === 'Offer requested' && student.documents && student.documents.length > 0) {
+    // Also check if status is "Offer Requested" and documents exist (more lenient)
+    if (currentStatus === 'Offer Requested' && student.documents && student.documents.length > 0) {
       return { text: 'Received', class: 'status-submitted' };
     }
     
@@ -181,11 +217,11 @@ const StudentDetail = () => {
 
   const getVisaDocumentStatus = () => {
     if (!student) return { text: 'Pending', class: 'status-pending' };
-    const currentStatus = student.status || 'Under review';
+    const currentStatus = student.status || 'Under Review';
     
     // Visa-related statuses indicate partner has submitted visa document request
     // and admin has processed it
-    const visaProcessStatuses = ['Fee paid', 'Visa documents issued', 'Visa submitted', 'Visa received'];
+    const visaProcessStatuses = ['Fee Paid', 'Visa Documents Issued', 'Visa Submitted', 'Visa Received', 'Full fee', 'Application payment 3'];
     
     // If status indicates visa document was processed, it's received
     if (visaProcessStatuses.includes(currentStatus)) {
@@ -200,16 +236,16 @@ const StudentDetail = () => {
     if (applicationProcessReceived) {
       // Application process is received, so visa document section becomes accessible
       // Partner submits visa document by uploading fee payment statement
-      // If status has progressed beyond "Offer received" (application process is complete)
+      // If status has progressed beyond "Offer Received" (application process is complete)
       // and there are documents, visa document was likely submitted
       // The logic: once application process is complete, any documents uploaded
       // are likely visa documents (fee payment statement)
       const hasDocuments = student.documents && student.documents.length > 0;
       
-      // If application process is complete (status beyond "Offer received") 
+      // If application process is complete (status beyond "Offer Received") 
       // and documents exist, partner likely submitted visa document request
-      // Status will be "Application moved", "Ministry submitted", or "Ministry approved"
-      // before admin processes visa document and moves status to "Fee paid"
+      // Status will be "Application Moved", "Ministry Submitted", etc.
+      // before admin processes visa document and moves status to "Fee Paid"
       if (hasDocuments) {
         return { text: 'Received', class: 'status-submitted' };
       }
@@ -533,7 +569,7 @@ const StudentDetail = () => {
             <div className="status-selector-container">
               <select
                 className={`status-select status-${status.class.replace('status-', '')}`}
-                value={student.status || 'Under review'}
+                value={student.status || 'Under Review'}
                 onChange={(e) => handleStatusChange(e.target.value)}
                 disabled={updatingStatus}
               >
@@ -618,6 +654,12 @@ const StudentDetail = () => {
                   <span className="info-label">Aadhar Number / GCC ID</span>
                   <span className="info-value">{student.aadharNumber || 'N/A'}</span>
                 </div>
+                {student.nationality && (
+                  <div className="info-item">
+                    <span className="info-label">Nationality</span>
+                    <span className="info-value">{student.nationality}</span>
+                  </div>
+                )}
                 {student.passportNumber && (
                   <div className="info-item">
                     <span className="info-label">Passport Number</span>
@@ -636,6 +678,18 @@ const StudentDetail = () => {
                   <span className="info-label">Country</span>
                   <span className="info-value">{student.universityId?.country || 'N/A'}</span>
                 </div>
+                {student.intakeYear && (
+                  <div className="info-item">
+                    <span className="info-label">Intake Year</span>
+                    <span className="info-value">{student.intakeYear}</span>
+                  </div>
+                )}
+                {student.intakeId && (
+                  <div className="info-item">
+                    <span className="info-label">Intake</span>
+                    <span className="info-value">{student.intakeId?.name || student.intake?.name || 'N/A'}</span>
+                  </div>
+                )}
                 <div className="info-item">
                   <span className="info-label">Partner Company</span>
                   <span className="info-value">
@@ -858,6 +912,12 @@ const StudentDetail = () => {
                   <span className="info-label">Name</span>
                   <span className="info-value">{student.fullName || 'N/A'}</span>
                 </div>
+                {student.nationality && (
+                  <div className="info-item">
+                    <span className="info-label">Nationality</span>
+                    <span className="info-value">{student.nationality}</span>
+                  </div>
+                )}
                 {student.passportNumber && (
                   <div className="info-item">
                     <span className="info-label">Passport Number</span>
@@ -866,16 +926,22 @@ const StudentDetail = () => {
                 )}
                 <div className="info-item">
                   <span className="info-label">Course</span>
-                  <span className="info-value">{student.courseId?.name || 'N/A'}</span>
+                  <span className="info-value">{student.courseId?.name || student.course?.name || 'N/A'}</span>
                 </div>
                 <div className="info-item">
                   <span className="info-label">University</span>
-                  <span className="info-value">{student.universityId?.name || 'N/A'}</span>
+                  <span className="info-value">{student.universityId?.name || student.university?.name || 'N/A'}</span>
                 </div>
-                {student.intake && (
+                {student.intakeYear && (
+                  <div className="info-item">
+                    <span className="info-label">Intake Year</span>
+                    <span className="info-value">{student.intakeYear}</span>
+                  </div>
+                )}
+                {student.intakeId && (
                   <div className="info-item">
                     <span className="info-label">Intake</span>
-                    <span className="info-value">{student.intake}</span>
+                    <span className="info-value">{student.intakeId?.name || student.intake?.name || 'N/A'}</span>
                   </div>
                 )}
                 {student.courseId?.description && (
@@ -983,6 +1049,12 @@ const StudentDetail = () => {
                   <span className="info-label">Name</span>
                   <span className="info-value">{student.fullName || 'N/A'}</span>
                 </div>
+                {student.nationality && (
+                  <div className="info-item">
+                    <span className="info-label">Nationality</span>
+                    <span className="info-value">{student.nationality}</span>
+                  </div>
+                )}
                 {student.passportNumber && (
                   <div className="info-item">
                     <span className="info-label">Passport Number</span>

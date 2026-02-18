@@ -41,9 +41,12 @@ const StudentDetail = () => {
   
   const [universities, setUniversities] = useState([]);
   const [courses, setCourses] = useState([]);
+  const [selectedUniversity, setSelectedUniversity] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState({});
   const [passportCheckError, setPassportCheckError] = useState('');
+  const [generalDocuments, setGeneralDocuments] = useState([]);
+  const [isDraggingGeneral, setIsDraggingGeneral] = useState(false);
   const abortControllerRef = useRef(null);
 
   useEffect(() => {
@@ -76,19 +79,18 @@ const StudentDetail = () => {
       // Load intake from localStorage if available
       const savedIntake = localStorage.getItem(`student_intake_${id}`) || '';
       
+      const universityId = student.universityId?._id || student.universityId || '';
+      const university = universities.find(u => (u._id === universityId) || (u.id === universityId));
+      setSelectedUniversity(university);
+      
       // Populate Application Process Request form from student data
       setAppProcessForm({
         name: student.fullName || '',
         passportNumber: student.passportNumber || '',
         courseId: student.courseId?._id || student.courseId || '',
-        universityId: student.universityId?._id || student.universityId || '',
+        universityId: universityId,
         intake: savedIntake,
-        documents: {
-          passport: null,
-          certificate12th: null,
-          introVideo: null,
-          image: null
-        }
+        documents: {}
       });
       
       // Populate Visa Document Request form
@@ -98,7 +100,7 @@ const StudentDetail = () => {
         feePaymentStatement: null
       });
     }
-  }, [student, id]);
+  }, [student, id, universities]);
 
   const fetchStudentDetails = async (signal) => {
     try {
@@ -198,6 +200,18 @@ const StudentDetail = () => {
       [field]: value
     }));
     
+    // When university changes, update selected university and reset documents
+    if (field === 'universityId') {
+      const university = universities.find(u => u._id === value || u.id === value);
+      setSelectedUniversity(university);
+      // Reset documents when university changes
+      setAppProcessForm(prev => ({
+        ...prev,
+        documents: {}
+      }));
+      setGeneralDocuments([]);
+    }
+    
     // Check passport duplicate when passport number changes
     if (field === 'passportNumber') {
       checkPassportDuplicate(value);
@@ -207,13 +221,14 @@ const StudentDetail = () => {
   const handleDocumentUpload = async (file, documentType) => {
     if (!file) {
       // Remove document if file is null
-      setAppProcessForm(prev => ({
-        ...prev,
-        documents: {
-          ...prev.documents,
-          [documentType]: null
-        }
-      }));
+      setAppProcessForm(prev => {
+        const newDocuments = { ...prev.documents };
+        delete newDocuments[documentType];
+        return {
+          ...prev,
+          documents: newDocuments
+        };
+      });
       return;
     }
 
@@ -249,6 +264,68 @@ const StudentDetail = () => {
     }
   };
 
+  const handleGeneralDocumentsUpload = (files) => {
+    if (!files || files.length === 0) {
+      return;
+    }
+
+    const fileArray = Array.from(files);
+    const validFiles = fileArray.filter(file => {
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf', 'video/mp4', 'video/quicktime'];
+      if (!validTypes.includes(file.type)) {
+        alert(`Invalid file type for ${file.name}. Please upload JPG, PNG, PDF, or MP4 files.`);
+        return false;
+      }
+      if (file.size > 20 * 1024 * 1024) {
+        alert(`File size exceeds 20MB limit for ${file.name}.`);
+        return false;
+      }
+      return true;
+    });
+
+    // Add new files to existing ones (allow multiple selections)
+    setGeneralDocuments(prev => {
+      const existingNames = prev.map(f => f.name);
+      const newFiles = validFiles.filter(f => !existingNames.includes(f.name));
+      return [...prev, ...newFiles];
+    });
+  };
+
+  const handleGeneralDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingGeneral(true);
+  };
+
+  const handleGeneralDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingGeneral(false);
+  };
+
+  const handleGeneralDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingGeneral(false);
+
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      handleGeneralDocumentsUpload(files);
+    }
+  };
+
+  const handleGeneralFileInputChange = (e) => {
+    const files = e.target.files;
+    if (files.length > 0) {
+      handleGeneralDocumentsUpload(files);
+    }
+    e.target.value = ''; // Reset input
+  };
+
+  const handleRemoveGeneralDocument = (index) => {
+    setGeneralDocuments(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleAppProcessSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -263,6 +340,24 @@ const StudentDetail = () => {
     if (appProcessForm.passportNumber && passportCheckError) {
       setError('Please fix passport number error');
       return;
+    }
+
+    // Validate required documents (excluding "General")
+    if (selectedUniversity?.requiredDocuments && selectedUniversity.requiredDocuments.length > 0) {
+      const requiredDocs = selectedUniversity.requiredDocuments.filter(doc => doc !== 'General');
+      const missingDocs = [];
+
+      requiredDocs.forEach((docName, index) => {
+        const documentType = `doc_${index}_${docName.replace(/\s+/g, '_')}`;
+        if (!appProcessForm.documents[documentType]) {
+          missingDocs.push(docName);
+        }
+      });
+
+      if (missingDocs.length > 0) {
+        setError(`Please upload all required documents: ${missingDocs.join(', ')}`);
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -282,9 +377,12 @@ const StudentDetail = () => {
         // Upload documents if any
         const documentsToUpload = Object.values(appProcessForm.documents).filter(doc => doc !== null && doc instanceof File);
         
-        if (documentsToUpload.length > 0) {
+        // Add general documents if any
+        const allDocuments = [...documentsToUpload, ...generalDocuments];
+        
+        if (allDocuments.length > 0) {
           const formData = new FormData();
-          documentsToUpload.forEach(file => {
+          allDocuments.forEach(file => {
             formData.append('documents', file);
           });
 
@@ -308,13 +406,9 @@ const StudentDetail = () => {
         // Reset form documents
         setAppProcessForm(prev => ({
           ...prev,
-          documents: {
-            passport: null,
-            certificate12th: null,
-            introVideo: null,
-            image: null
-          }
+          documents: {}
         }));
+        setGeneralDocuments([]);
       } else {
         setError(updateResponse.data.message || 'Failed to submit application process request');
       }
@@ -406,36 +500,44 @@ const StudentDetail = () => {
 
   const getStatusBadge = () => {
     if (!student) return { text: 'Unknown', class: 'status-pending' };
-    const currentStatus = student.status || 'Under review';
+    const currentStatus = student.status || 'Under Review';
     
     const statusClassMap = {
-      'Under review': 'status-warning',
-      'Offer requested': 'status-info',
-      'Offer received': 'status-success',
-      'Application moved': 'status-info',
-      'Ministry submitted': 'status-info',
-      'Ministry approved': 'status-success',
-      'Fee paid': 'status-success',
-      'Visa documents issued': 'status-info',
-      'Visa submitted': 'status-info',
-      'Visa received': 'status-success',
-      'Student dropped': 'status-danger'
+      'Under Review': 'status-info',
+      'Offer Requested': 'status-info',
+      'Offer Received': 'status-success',
+      'Application payment 1': 'status-info',
+      'Application Moved': 'status-info',
+      'Ministry Submitted': 'status-info',
+      'Exam issued': 'status-info',
+      'Application payment 2': 'status-info',
+      'Fee Paid': 'status-success',
+      'Visa Documents Issued': 'status-info',
+      'Visa Submitted': 'status-info',
+      'Visa Received': 'status-success',
+      'Full fee': 'status-success',
+      'Application payment 3': 'status-success',
+      'Visa rejected': 'status-danger',
+      'Trc request': 'status-info',
+      'Trc approved': 'status-success',
+      'Trc rejected': 'status-danger',
+      'Student Dropped': 'status-danger'
     };
 
     return {
       text: currentStatus,
-      class: statusClassMap[currentStatus] || 'status-warning'
+      class: statusClassMap[currentStatus] || 'status-info'
     };
   };
 
   const getOfferLetterStatus = () => {
     if (!student) return { text: 'Pending', class: 'status-pending' };
-    const currentStatus = student.status || 'Under review';
+    const currentStatus = student.status || 'Under Review';
     
     // Offer letter process statuses
-    const offerLetterStatuses = ['Offer requested', 'Offer received'];
+    const offerLetterStatuses = ['Offer Requested', 'Offer Received'];
     
-    if (currentStatus === 'Under review') {
+    if (currentStatus === 'Under Review') {
       return { text: 'Pending', class: 'status-pending' };
     } else if (offerLetterStatuses.includes(currentStatus)) {
       return { text: 'Submitted', class: 'status-submitted' };
@@ -447,13 +549,13 @@ const StudentDetail = () => {
 
   const getApplicationProcessStatus = () => {
     if (!student) return { text: 'Pending', class: 'status-pending' };
-    const currentStatus = student.status || 'Under review';
+    const currentStatus = student.status || 'Under Review';
     
     // Application process statuses
-    const applicationProcessStatuses = ['Application moved', 'Ministry submitted', 'Ministry approved', 'Fee paid'];
+    const applicationProcessStatuses = ['Application payment 1', 'Application Moved', 'Ministry Submitted', 'Exam issued', 'Application payment 2', 'Fee Paid'];
     
     // Check if status indicates submission (admin has moved it forward)
-    if (!['Under review', 'Offer requested', 'Offer received'].includes(currentStatus)) {
+    if (!['Under Review', 'Offer Requested', 'Offer Received'].includes(currentStatus)) {
       return { text: 'Submitted', class: 'status-submitted' };
     }
     
@@ -479,10 +581,10 @@ const StudentDetail = () => {
 
   const isApplicationProcessSubmitted = () => {
     if (!student) return false;
-    const currentStatus = student.status || 'Under review';
+    const currentStatus = student.status || 'Under Review';
     
     // Check if status indicates submission (admin has moved it forward)
-    if (!['Under review', 'Offer requested', 'Offer received'].includes(currentStatus)) {
+    if (!['Under Review', 'Offer Requested', 'Offer Received'].includes(currentStatus)) {
       return true;
     }
     
@@ -510,10 +612,10 @@ const StudentDetail = () => {
 
   const getVisaDocumentStatus = () => {
     if (!student) return { text: 'Pending', class: 'status-pending' };
-    const currentStatus = student.status || 'Under review';
+    const currentStatus = student.status || 'Under Review';
     
     // Visa document process statuses
-    const visaProcessStatuses = ['Visa documents issued', 'Visa submitted', 'Visa received'];
+    const visaProcessStatuses = ['Fee Paid', 'Visa Documents Issued', 'Visa Submitted', 'Visa Received', 'Full fee', 'Application payment 3'];
     
     // Check if status indicates submission (admin has moved it forward)
     if (visaProcessStatuses.includes(currentStatus)) {
@@ -544,10 +646,10 @@ const StudentDetail = () => {
 
   const isVisaDocumentSubmitted = () => {
     if (!student) return false;
-    const currentStatus = student.status || 'Under review';
+    const currentStatus = student.status || 'Under Review';
     
     // Check if status indicates submission (admin has moved it forward)
-    const visaProcessStatuses = ['Visa documents issued', 'Visa submitted', 'Visa received'];
+    const visaProcessStatuses = ['Fee Paid', 'Visa Documents Issued', 'Visa Submitted', 'Visa Received', 'Full fee', 'Application payment 3'];
     if (visaProcessStatuses.includes(currentStatus)) {
       return true;
     }
@@ -805,6 +907,12 @@ const StudentDetail = () => {
                   <span className="info-label">Aadhar Number / GCC ID</span>
                   <span className="info-value">{student.aadharNumber || 'N/A'}</span>
                 </div>
+                {student.nationality && (
+                  <div className="info-item">
+                    <span className="info-label">Nationality</span>
+                    <span className="info-value">{student.nationality}</span>
+                  </div>
+                )}
                 {student.passportNumber && (
                   <div className="info-item">
                     <span className="info-label">Passport Number</span>
@@ -823,6 +931,18 @@ const StudentDetail = () => {
                   <span className="info-label">Country</span>
                   <span className="info-value">{student.universityId?.country || 'N/A'}</span>
                 </div>
+                {student.intakeYear && (
+                  <div className="info-item">
+                    <span className="info-label">Intake Year</span>
+                    <span className="info-value">{student.intakeYear}</span>
+                  </div>
+                )}
+                {student.intakeId && (
+                  <div className="info-item">
+                    <span className="info-label">Intake</span>
+                    <span className="info-value">{student.intakeId?.name || student.intake?.name || 'N/A'}</span>
+                  </div>
+                )}
                 <div className="info-item">
                   <span className="info-label">Application Created</span>
                   <span className="info-value">{formatDate(student.createdAt)}</span>
@@ -988,6 +1108,12 @@ const StudentDetail = () => {
                       <span className="info-label">Name</span>
                       <span className="info-value">{student.fullName || appProcessForm.name || 'N/A'}</span>
                     </div>
+                    {student.nationality && (
+                      <div className="info-item">
+                        <span className="info-label">Nationality</span>
+                        <span className="info-value">{student.nationality}</span>
+                      </div>
+                    )}
                     {student.passportNumber && (
                       <div className="info-item">
                         <span className="info-label">Passport Number</span>
@@ -1000,12 +1126,22 @@ const StudentDetail = () => {
                     </div>
                     <div className="info-item">
                       <span className="info-label">University</span>
-                      <span className="info-value">{student.universityId?.name || 'N/A'}</span>
+                      <span className="info-value">{student.universityId?.name || student.university?.name || 'N/A'}</span>
                     </div>
-                    <div className="info-item">
-                      <span className="info-label">Intake</span>
-                      <span className="info-value">{appProcessForm.intake || localStorage.getItem(`student_intake_${id}`) || 'N/A'}</span>
-                    </div>
+                    {student.intakeYear && (
+                      <div className="info-item">
+                        <span className="info-label">Intake Year</span>
+                        <span className="info-value">{student.intakeYear}</span>
+                      </div>
+                    )}
+                    {(student.intakeId || appProcessForm.intake) && (
+                      <div className="info-item">
+                        <span className="info-label">Intake</span>
+                        <span className="info-value">
+                          {student.intakeId?.name || student.intake?.name || appProcessForm.intake || localStorage.getItem(`student_intake_${id}`) || 'N/A'}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Submitted Documents */}
@@ -1165,43 +1301,143 @@ const StudentDetail = () => {
                   <div className="documents-upload-section">
                     <h3>Required Documents</h3>
                     
-                    <div className="document-upload-grid">
-                      <DocumentUploadField
-                        label="Passport"
-                        documentType="passport"
-                        file={appProcessForm.documents.passport}
-                        onUpload={handleDocumentUpload}
-                        uploading={uploadingFiles.passport}
-                        accept=".pdf,.jpg,.jpeg,.png"
-                      />
-                      
-                      <DocumentUploadField
-                        label="12th Certificate"
-                        documentType="certificate12th"
-                        file={appProcessForm.documents.certificate12th}
-                        onUpload={handleDocumentUpload}
-                        uploading={uploadingFiles.certificate12th}
-                        accept=".pdf,.jpg,.jpeg,.png"
-                      />
-                      
-                      <DocumentUploadField
-                        label="Intro Video (Selfie)"
-                        documentType="introVideo"
-                        file={appProcessForm.documents.introVideo}
-                        onUpload={handleDocumentUpload}
-                        uploading={uploadingFiles.introVideo}
-                        accept=".mp4,.mov"
-                      />
-                      
-                      <DocumentUploadField
-                        label="Image"
-                        documentType="image"
-                        file={appProcessForm.documents.image}
-                        onUpload={handleDocumentUpload}
-                        uploading={uploadingFiles.image}
-                        accept=".jpg,.jpeg,.png"
-                      />
-                    </div>
+                    {selectedUniversity?.requiredDocuments && selectedUniversity.requiredDocuments.length > 0 ? (
+                      <>
+                        {selectedUniversity.requiredDocuments.includes('General') ? (
+                          <div className="general-document-upload" style={{ marginBottom: '1.5rem' }}>
+                            <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: '500' }}>
+                              General Documents (Upload Multiple)
+                            </label>
+                            
+                            {/* Drag and Drop Area */}
+                            <div
+                              className={`general-drag-drop-area ${isDraggingGeneral ? 'dragging' : ''}`}
+                              onDragOver={handleGeneralDragOver}
+                              onDragLeave={handleGeneralDragLeave}
+                              onDrop={handleGeneralDrop}
+                              style={{
+                                border: '2px dashed #d1d5db',
+                                borderRadius: '8px',
+                                padding: '2rem',
+                                textAlign: 'center',
+                                background: isDraggingGeneral ? '#dbeafe' : '#f9fafb',
+                                transition: 'all 0.2s',
+                                cursor: 'pointer',
+                                marginBottom: '1rem'
+                              }}
+                            >
+                              <input
+                                type="file"
+                                id="general-file-input"
+                                multiple
+                                accept=".pdf,.jpg,.jpeg,.png,.mp4,.mov"
+                                onChange={handleGeneralFileInputChange}
+                                disabled={submitting}
+                                style={{ display: 'none' }}
+                              />
+                              <label htmlFor="general-file-input" style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: '#6b7280' }}>
+                                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                  <polyline points="17 8 12 3 7 8"></polyline>
+                                  <line x1="12" y1="3" x2="12" y2="15"></line>
+                                </svg>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                  <strong style={{ color: '#111827', fontSize: '0.9375rem' }}>Drag and drop files here</strong>
+                                  <span style={{ color: '#6b7280', fontSize: '0.875rem' }}>or click to browse</span>
+                                  <small style={{ color: '#9ca3af', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                                    Supports: JPG, PNG, PDF, MP4 (Max 20MB per file)
+                                  </small>
+                                </div>
+                              </label>
+                            </div>
+
+                            {/* Selected Files List */}
+                            {generalDocuments.length > 0 && (
+                              <div style={{ marginTop: '1rem' }}>
+                                <div style={{ fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.5rem', color: '#374151' }}>
+                                  Selected Files ({generalDocuments.length})
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                  {generalDocuments.map((file, index) => (
+                                    <div
+                                      key={index}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        padding: '0.75rem',
+                                        background: '#f9fafb',
+                                        borderRadius: '6px',
+                                        border: '1px solid #e5e7eb'
+                                      }}
+                                    >
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 }}>
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: '#6b7280', flexShrink: 0 }}>
+                                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                          <polyline points="14 2 14 8 20 8"></polyline>
+                                          <line x1="16" y1="13" x2="8" y2="13"></line>
+                                          <line x1="16" y1="17" x2="8" y2="17"></line>
+                                          <polyline points="10 9 9 9 8 9"></polyline>
+                                        </svg>
+                                        <span style={{ fontSize: '0.875rem', color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                          {file.name}
+                                        </span>
+                                        <span style={{ fontSize: '0.75rem', color: '#9ca3af', marginLeft: 'auto', flexShrink: 0 }}>
+                                          {(file.size / 1024 / 1024).toFixed(2)} MB
+                                        </span>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRemoveGeneralDocument(index)}
+                                        disabled={submitting}
+                                        style={{
+                                          background: 'none',
+                                          border: 'none',
+                                          color: '#dc2626',
+                                          cursor: 'pointer',
+                                          padding: '0.25rem 0.5rem',
+                                          fontSize: '1.25rem',
+                                          lineHeight: '1',
+                                          marginLeft: '0.5rem',
+                                          flexShrink: 0
+                                        }}
+                                        title="Remove file"
+                                      >
+                                        ×
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ) : null}
+                        
+                        <div className="document-upload-grid">
+                          {selectedUniversity.requiredDocuments
+                            .filter(doc => doc !== 'General')
+                            .map((docName, index) => {
+                              const documentType = `doc_${index}_${docName.replace(/\s+/g, '_')}`;
+                              return (
+                                <DocumentUploadField
+                                  key={index}
+                                  label={docName}
+                                  documentType={documentType}
+                                  file={appProcessForm.documents[documentType]}
+                                  onUpload={handleDocumentUpload}
+                                  uploading={uploadingFiles[documentType]}
+                                  accept=".pdf,.jpg,.jpeg,.png,.mp4,.mov"
+                                  required={true}
+                                />
+                              );
+                            })}
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ padding: '1rem', background: '#f9fafb', borderRadius: '6px', color: '#6b7280' }}>
+                        No required documents specified for this university. Please contact admin.
+                      </div>
+                    )}
                   </div>
 
                   <button type="submit" className="submit-btn" disabled={submitting}>
@@ -1233,6 +1469,12 @@ const StudentDetail = () => {
                       <span className="info-label">Name</span>
                       <span className="info-value">{student.fullName || visaForm.name || 'N/A'}</span>
                     </div>
+                    {student.nationality && (
+                      <div className="info-item">
+                        <span className="info-label">Nationality</span>
+                        <span className="info-value">{student.nationality}</span>
+                      </div>
+                    )}
                     {student.passportNumber && (
                       <div className="info-item">
                         <span className="info-label">Passport Number</span>
@@ -1373,7 +1615,7 @@ const StudentDetail = () => {
 };
 
 // Document Upload Field Component
-const DocumentUploadField = ({ label, documentType, file, onUpload, uploading, accept }) => {
+const DocumentUploadField = ({ label, documentType, file, onUpload, uploading, accept, required = false }) => {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleDragOver = (e) => {
@@ -1408,9 +1650,12 @@ const DocumentUploadField = ({ label, documentType, file, onUpload, uploading, a
 
   return (
     <div className="document-upload-field">
-      <label className="document-label">{label}</label>
+      <label className="document-label">
+        {label}
+        {required && <span className="required" style={{ color: '#dc2626', marginLeft: '0.25rem' }}>*</span>}
+      </label>
       <div
-        className={`document-drop-zone ${isDragging ? 'dragging' : ''} ${file ? 'has-file' : ''}`}
+        className={`document-drop-zone ${isDragging ? 'dragging' : ''} ${file ? 'has-file' : ''} ${required && !file ? 'required-missing' : ''}`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}

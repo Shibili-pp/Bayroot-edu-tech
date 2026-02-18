@@ -36,7 +36,7 @@ const getUniversity = async (req, res) => {
 // Create university (Admin only)
 const createUniversity = async (req, res) => {
   try {
-    const { name, country, location, description } = req.body;
+    const { name, country, location, description, requiredDocuments } = req.body;
     const userId = req.user.userId || req.user.id;
     const role = req.user.role;
 
@@ -59,6 +59,7 @@ const createUniversity = async (req, res) => {
       country: country.trim(),
       location: location?.trim() || '',
       description: description?.trim() || '',
+      requiredDocuments: Array.isArray(requiredDocuments) ? requiredDocuments.filter(doc => doc && doc.trim()) : [],
       isActive: true
     });
 
