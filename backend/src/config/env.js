@@ -14,5 +14,6 @@ module.exports = {
   AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
   AWS_REGION: process.env.AWS_REGION || 'us-east-1',
   AWS_S3_BUCKET_NAME: process.env.AWS_S3_BUCKET_NAME,
+  FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:5173',
 };
 

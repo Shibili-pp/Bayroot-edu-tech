@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { getToken, getUser, setAuth, clearAuth } from '../utils/auth';
 import api from '../api/axios';
+import { initializeSocket, disconnectSocket } from '../services/socket.service';
 
 const AuthContext = createContext(null);
 
@@ -25,9 +26,16 @@ export const AuthProvider = ({ children }) => {
     if (storedToken && storedUser) {
       setToken(storedToken);
       setUser(storedUser);
+      // ARCHITECTURE IMPROVEMENT: Initialize Socket.IO connection on app load if user is logged in
+      initializeSocket(storedToken);
     }
     
     setLoading(false);
+
+    // Cleanup: Disconnect socket on unmount
+    return () => {
+      disconnectSocket();
+    };
   }, []);
 
   /**
@@ -48,6 +56,9 @@ export const AuthProvider = ({ children }) => {
         setToken(newToken);
         setUser(userData);
         setAuth(newToken, userData);
+        
+        // ARCHITECTURE IMPROVEMENT: Initialize Socket.IO connection after successful login
+        initializeSocket(newToken);
         
         return { success: true, user: userData };
       }
@@ -79,6 +90,9 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
+      // ARCHITECTURE IMPROVEMENT: Disconnect Socket.IO on logout
+      disconnectSocket();
+      
       // Clear state and localStorage
       setToken(null);
       setUser(null);

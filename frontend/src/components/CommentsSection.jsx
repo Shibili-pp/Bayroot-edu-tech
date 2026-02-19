@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import api from '../api/axios';
+import api, { invalidateCache } from '../api/axios';
 import './CommentsSection.css';
 
 const CommentsSection = ({ studentId, userRole }) => {
@@ -33,10 +33,15 @@ const CommentsSection = ({ studentId, userRole }) => {
   //   commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   // }, [comments]);
 
-  const fetchComments = async (signal) => {
+  const fetchComments = async (signal = null) => {
     try {
       setLoading(true);
-      const response = await api.get(`/comments/student/${studentId}`, { signal });
+      // Invalidate cache to ensure fresh data
+      invalidateCache(`/comments/student/${studentId}`);
+      const response = await api.get(`/comments/student/${studentId}`, { 
+        signal,
+        cache: false // Force fresh fetch
+      });
       if (response.data.success) {
         setComments(response.data.data.comments || []);
       }
@@ -112,9 +117,31 @@ const CommentsSection = ({ studentId, userRole }) => {
       });
 
       if (response.data.success) {
+        const newCommentData = response.data.data.comment;
+        
+        // ARCHITECTURE IMPROVEMENT: Optimistic UI update - add comment immediately
+        // This provides instant feedback without waiting for refetch
+        if (newCommentData) {
+          setComments(prevComments => {
+            // Check if comment already exists (prevent duplicates)
+            const exists = prevComments.some(c => c._id === newCommentData._id);
+            if (exists) {
+              return prevComments;
+            }
+            // Add new comment to the list
+            return [...prevComments, newCommentData];
+          });
+        }
+        
         setNewComment('');
         setFilesToUpload([]);
-        fetchComments();
+        
+        // Invalidate cache and refetch to ensure consistency
+        invalidateCache(`/comments/student/${studentId}`);
+        // Refetch with a small delay to ensure backend has processed the comment
+        setTimeout(() => {
+          fetchComments();
+        }, 100);
       } else {
         setError(response.data.message || 'Failed to post comment');
       }
@@ -150,10 +177,32 @@ const CommentsSection = ({ studentId, userRole }) => {
       });
 
       if (response.data.success) {
+        const newReplyData = response.data.data.comment;
+        
+        // ARCHITECTURE IMPROVEMENT: Optimistic UI update - add reply immediately
+        // This provides instant feedback without waiting for refetch
+        if (newReplyData) {
+          setComments(prevComments => {
+            // Check if reply already exists (prevent duplicates)
+            const exists = prevComments.some(c => c._id === newReplyData._id);
+            if (exists) {
+              return prevComments;
+            }
+            // Add new reply to the list
+            return [...prevComments, newReplyData];
+          });
+        }
+        
         setReplyText('');
         setReplyingTo(null);
         setFilesToUpload([]);
-        fetchComments();
+        
+        // Invalidate cache and refetch to ensure consistency
+        invalidateCache(`/comments/student/${studentId}`);
+        // Refetch with a small delay to ensure backend has processed the reply
+        setTimeout(() => {
+          fetchComments();
+        }, 100);
       } else {
         setError(response.data.message || 'Failed to post reply');
       }

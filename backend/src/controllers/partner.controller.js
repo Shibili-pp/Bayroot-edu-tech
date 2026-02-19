@@ -373,6 +373,16 @@ const approvePartner = async (req, res) => {
       // Continue even if audit logging fails
     }
 
+    // ARCHITECTURE IMPROVEMENT: Emit real-time approval status change via WebSocket
+    // This replaces polling-based approval status checking
+    try {
+      const { emitApprovalStatusChange } = require('../services/socket.service');
+      emitApprovalStatusChange(partner._id.toString(), true);
+    } catch (socketError) {
+      // Don't fail request if socket emit fails
+      console.error('Error emitting approval status via Socket.IO:', socketError);
+    }
+
     return sendSuccess(res, { partner }, 'Partner approved successfully');
   } catch (error) {
     console.error('Approve partner error:', error);
@@ -433,6 +443,16 @@ const rejectPartner = async (req, res) => {
     } catch (auditError) {
       console.error('Audit logging error (non-blocking):', auditError);
       // Continue even if audit logging fails
+    }
+
+    // ARCHITECTURE IMPROVEMENT: Emit real-time approval status change via WebSocket
+    // This replaces polling-based approval status checking
+    try {
+      const { emitApprovalStatusChange } = require('../services/socket.service');
+      emitApprovalStatusChange(partner._id.toString(), false);
+    } catch (socketError) {
+      // Don't fail request if socket emit fails
+      console.error('Error emitting approval status via Socket.IO:', socketError);
     }
 
     return sendSuccess(res, { partner }, 'Partner approval revoked successfully');

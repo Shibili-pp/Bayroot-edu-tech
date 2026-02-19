@@ -5,6 +5,7 @@ import logo from '../../assets/EDU CONNECT.png';
 import NewApplicationModal from '../NewApplicationModal';
 import PartnerNotificationsPopup from '../PartnerNotificationsPopup';
 import api from '../../api/axios';
+import { getSocket, onUnreadCountUpdate, onApprovalStatusChange } from '../../services/socket.service';
 import './PartnerLayout.css';
 
 /**
@@ -52,60 +53,94 @@ const PartnerLayout = ({ children }) => {
     }
   }, [user]);
 
-  // Poll for approval status changes every 30 seconds if not approved
+  // ARCHITECTURE IMPROVEMENT: WebSocket-based real-time approval status updates
+  // Replaces polling-based system with efficient WebSocket events
   useEffect(() => {
     if (!isApproved && user?.role === 'PARTNER' && !checkingApproval) {
-      const interval = setInterval(async () => {
-        try {
-          const response = await api.get('/partner/approval-status', { cache: false });
-          if (response.data.success) {
-            const approved = response.data.data?.isApproved ?? false;
-            if (approved !== isApproved) {
-              setIsApproved(approved);
-              // Refresh page to get full access
-              if (approved) {
-                window.location.reload();
-              }
+      // ARCHITECTURE: Listen to WebSocket events for real-time approval status changes
+      const socket = getSocket();
+      if (socket && socket.connected) {
+        // Set up WebSocket listener for approval status changes
+        const cleanup = onApprovalStatusChange((approved, timestamp) => {
+          console.log('Socket.IO: Received approval status update:', approved);
+          if (approved !== isApproved) {
+            setIsApproved(approved);
+            // Refresh page to get full access when approved
+            if (approved) {
+              window.location.reload();
             }
           }
-        } catch (error) {
-          // Silently fail - don't spam console
-        }
-      }, 30000); // Check every 30 seconds
+        });
 
-      return () => clearInterval(interval);
+        // Cleanup listener on unmount or when approved
+        return cleanup;
+      } else {
+        // Fallback: If WebSocket not connected, use polling (backward compatibility)
+        console.warn('Socket.IO not connected, falling back to polling for approval status');
+        const interval = setInterval(async () => {
+          try {
+            const response = await api.get('/partner/approval-status', { 
+              cacheTTL: 15000
+            });
+            if (response.data.success) {
+              const approved = response.data.data?.isApproved ?? false;
+              if (approved !== isApproved) {
+                setIsApproved(approved);
+                if (approved) {
+                  window.location.reload();
+                }
+              }
+            }
+          } catch (error) {
+            // Silently fail
+          }
+        }, 60000);
+        return () => clearInterval(interval);
+      }
     }
   }, [isApproved, user, checkingApproval]);
 
-  // Fetch unread comments count
+  // ARCHITECTURE IMPROVEMENT: WebSocket-based real-time unread count updates
+  // Replaces polling-based system with efficient WebSocket events
   useEffect(() => {
     if (!isApproved || checkingApproval) return;
 
-    const fetchUnreadCount = async () => {
+    // Initial fetch on mount (fallback if WebSocket not ready)
+    const fetchInitialCount = async () => {
       try {
-        // Use cache with TTL to reduce API calls
         const response = await api.get('/comments/unread/admin?limit=100', {
-          cacheTTL: 20 * 1000 // Cache for 20 seconds
+          cacheTTL: 20 * 1000
         });
         if (response.data.success) {
           setUnreadCount(response.data.data?.comments?.length || 0);
         }
       } catch (error) {
-        // Don't log rate limit errors, just silently fail
         if (error.response?.status !== 429) {
-          console.error('Error fetching unread count:', error);
+          console.error('Error fetching initial unread count:', error);
         }
-        // Don't reset count on error to avoid flickering
       }
     };
 
-    // Fetch count on mount
-    fetchUnreadCount();
-    
-    // Refresh count every 60 seconds (less frequent to reduce rate limiting)
-    const interval = setInterval(fetchUnreadCount, 60000);
-    
-    return () => clearInterval(interval);
+    fetchInitialCount();
+
+    // ARCHITECTURE: Listen to WebSocket events for real-time updates
+    // This eliminates the need for polling intervals
+    const socket = getSocket();
+    if (socket && socket.connected) {
+      // Set up WebSocket listener for unread count updates
+      const cleanup = onUnreadCountUpdate((count, timestamp) => {
+        console.log('Socket.IO: Received unread count update:', count);
+        setUnreadCount(count);
+      });
+
+      // Cleanup listener on unmount
+      return cleanup;
+    } else {
+      // Fallback: If WebSocket not connected, use polling (backward compatibility)
+      console.warn('Socket.IO not connected, falling back to polling');
+      const interval = setInterval(fetchInitialCount, 60000);
+      return () => clearInterval(interval);
+    }
   }, [isApproved, checkingApproval]);
 
   const handleLogout = async () => {

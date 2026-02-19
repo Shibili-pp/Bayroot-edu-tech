@@ -88,27 +88,53 @@ const Dashboard = () => {
       
       // Fetch students with pagination (backend enforces max 50 per page)
       // We'll fetch multiple pages if needed for stats calculation
+      // REFACTORED: Added pagination loop guard to prevent infinite loops
       let allStudents = [];
       let page = 1;
       const limit = 50; // Backend maximum
       let hasMore = true;
+      const maxIterations = 5; // Safety guard: max 5 pages (250 students max)
+      let iterationCount = 0;
 
-      while (hasMore && allStudents.length < 200) { // Cap at 200 students for stats
-        const response = await api.get(`/students?page=${page}&limit=${limit}`, {
-          signal: signal,
-          cacheTTL: 30 * 1000 // Cache for 30 seconds
-        });
+      // REFACTORED: Added maxIterations guard to prevent infinite loops
+      // This protects against backend pagination bugs or inconsistent responses
+      while (hasMore && allStudents.length < 200 && iterationCount < maxIterations) {
+        iterationCount++;
         
-        if (response.data.success) {
-          const students = response.data.data?.students || [];
-          allStudents = [...allStudents, ...students];
+        try {
+          const response = await api.get(`/students?page=${page}&limit=${limit}`, {
+            signal: signal,
+            cacheTTL: 30 * 1000 // Cache for 30 seconds
+          });
           
-          const pagination = response.data.data?.pagination;
-          hasMore = pagination && page < pagination.pages && allStudents.length < 200;
-          page++;
-        } else {
+          if (response.data.success) {
+            const students = response.data.data?.students || [];
+            allStudents = [...allStudents, ...students];
+            
+            const pagination = response.data.data?.pagination;
+            // Safety check: ensure pagination data is valid
+            if (pagination && typeof pagination.pages === 'number') {
+              hasMore = page < pagination.pages && allStudents.length < 200;
+            } else {
+              // If pagination data is missing or invalid, stop fetching
+              hasMore = false;
+            }
+            page++;
+          } else {
+            // API returned error, stop fetching
+            hasMore = false;
+          }
+        } catch (error) {
+          // If request fails (network error, abort, etc.), stop fetching
+          // Don't break the entire dashboard load, just use what we have
+          console.error(`Error fetching page ${page}:`, error);
           hasMore = false;
         }
+      }
+
+      // Log warning if we hit the iteration limit (indicates potential issue)
+      if (iterationCount >= maxIterations) {
+        console.warn('Pagination loop reached max iterations. This may indicate a backend pagination issue.');
       }
 
       const students = allStudents;

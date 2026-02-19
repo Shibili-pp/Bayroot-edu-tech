@@ -5,6 +5,7 @@ const Partner = require('../models/Partner.model');
 const { sendSuccess, sendError } = require('../utils/response.util');
 const { logAudit, getClientIp } = require('../utils/audit.util');
 const { sendCommentNotificationEmail } = require('../utils/email.util');
+const { emitUnreadCount } = require('../services/socket.service');
 const { v4: uuidv4 } = require('uuid');
 
 // Get all unread admin comments for partner (bulk endpoint)
@@ -153,6 +154,44 @@ const getComments = async (req, res) => {
       },
       { isRead: true }
     );
+
+    // ARCHITECTURE IMPROVEMENT: Emit real-time unread count update after marking as read
+    // This ensures notification badge updates immediately without polling
+    // OPTIMIZATION: Calculate count once, emit to relevant users
+    try {
+      if (role === 'PARTNER') {
+        // Partner marked comments as read → update all admins' unread count
+        const unreadCount = await Comment.countDocuments({
+          role: 'PARTNER',
+          isRead: false
+        });
+        const admins = await Admin.find({}).select('_id');
+        for (const admin of admins) {
+          emitUnreadCount(admin._id.toString(), unreadCount, 'ADMIN');
+        }
+      } else if (role === 'ADMIN') {
+        // Admin marked comments as read → update partner's unread count
+        const student = await Student.findById(studentId).select('partnerId');
+        if (student && student.partnerId) {
+          const partnerId = student.partnerId.toString();
+          const partnerStudents = await Student.find({ 
+            partnerId: partnerId, 
+            isDeleted: false 
+          }).select('_id');
+          const studentIds = partnerStudents.map(s => s._id);
+          
+          const unreadCount = await Comment.countDocuments({
+            studentId: { $in: studentIds },
+            role: 'ADMIN',
+            isRead: false
+          });
+          emitUnreadCount(partnerId, unreadCount, 'PARTNER');
+        }
+      }
+    } catch (socketError) {
+      // Don't fail request if socket emit fails
+      console.error('Error emitting unread count via Socket.IO:', socketError);
+    }
 
     return sendSuccess(res, { comments }, 'Comments retrieved successfully');
   } catch (error) {
@@ -305,6 +344,46 @@ const createComment = async (req, res) => {
       userAgent: req.get('user-agent')
     });
 
+    // ARCHITECTURE IMPROVEMENT: Emit real-time unread count update via WebSocket
+    // This replaces polling-based notification system
+    // OPTIMIZATION: Calculate count once and emit to all relevant users
+    try {
+      if (role === 'PARTNER') {
+        // Partner sent comment → notify all admins of new unread count
+        // OPTIMIZATION: Calculate count once, emit to all admins
+        const unreadCount = await Comment.countDocuments({
+          role: 'PARTNER',
+          isRead: false
+        });
+        const admins = await Admin.find({}).select('_id');
+        for (const admin of admins) {
+          emitUnreadCount(admin._id.toString(), unreadCount, 'ADMIN');
+        }
+      } else if (role === 'ADMIN') {
+        // Admin sent comment → notify partner of new unread count
+        if (studentWithPartner.partnerId) {
+          const partnerId = studentWithPartner.partnerId._id.toString();
+          // Get all students for this partner
+          const partnerStudents = await Student.find({ 
+            partnerId: partnerId, 
+            isDeleted: false 
+          }).select('_id');
+          const studentIds = partnerStudents.map(s => s._id);
+          
+          // Calculate unread admin comments for this partner
+          const unreadCount = await Comment.countDocuments({
+            studentId: { $in: studentIds },
+            role: 'ADMIN',
+            isRead: false
+          });
+          emitUnreadCount(partnerId, unreadCount, 'PARTNER');
+        }
+      }
+    } catch (socketError) {
+      // Don't fail comment creation if socket emit fails
+      console.error('Error emitting unread count via Socket.IO:', socketError);
+    }
+
     return sendSuccess(res, { comment }, 'Comment created successfully', 201);
   } catch (error) {
     return sendError(res, error.message, 500);
@@ -351,6 +430,42 @@ const updateComment = async (req, res) => {
 
     await comment.save();
     await comment.populate('authorId', role === 'ADMIN' ? 'name email' : 'companyName email');
+
+    // ARCHITECTURE IMPROVEMENT: Emit real-time unread count update when comment is marked as read
+    // OPTIMIZATION: Calculate count once, emit to relevant users
+    try {
+      const student = await Student.findById(comment.studentId).select('partnerId');
+      
+      if (comment.role === 'PARTNER') {
+        // Partner comment marked as read → update all admins' unread count
+        const unreadCount = await Comment.countDocuments({
+          role: 'PARTNER',
+          isRead: false
+        });
+        const admins = await Admin.find({}).select('_id');
+        for (const admin of admins) {
+          emitUnreadCount(admin._id.toString(), unreadCount, 'ADMIN');
+        }
+      } else if (comment.role === 'ADMIN' && student && student.partnerId) {
+        // Admin comment marked as read → update partner's unread count
+        const partnerId = student.partnerId.toString();
+        const partnerStudents = await Student.find({ 
+          partnerId: partnerId, 
+          isDeleted: false 
+        }).select('_id');
+        const studentIds = partnerStudents.map(s => s._id);
+        
+        const unreadCount = await Comment.countDocuments({
+          studentId: { $in: studentIds },
+          role: 'ADMIN',
+          isRead: false
+        });
+        emitUnreadCount(partnerId, unreadCount, 'PARTNER');
+      }
+    } catch (socketError) {
+      // Don't fail request if socket emit fails
+      console.error('Error emitting unread count via Socket.IO:', socketError);
+    }
 
     return sendSuccess(res, { comment }, 'Comment updated successfully');
   } catch (error) {

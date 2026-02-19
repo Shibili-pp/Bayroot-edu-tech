@@ -50,42 +50,96 @@ const PartnerNotificationsPopup = ({ isOpen, onClose }) => {
         setActionRequired(commentsResponse.data.data?.comments || []);
       }
 
-      // Fetch recent student updates - use smaller limit and cache
-      // Only fetch first page with smaller limit to reduce API load
-      const studentsResponse = await api.get('/students?page=1&limit=20', {
+      // Fetch students for document uploads and status updates
+      const studentsResponse = await api.get('/students?page=1&limit=50', {
         cacheTTL: 30 * 1000 // Cache for 30 seconds
       });
+      
+      // Fetch announcements
+      const announcementsResponse = await api.get('/announcements/visible?limit=10', {
+        cacheTTL: 30 * 1000
+      });
+      
+      const allUpdates = [];
+      
+      // Process announcements
+      if (announcementsResponse.data.success) {
+        const announcements = announcementsResponse.data.data?.announcements || [];
+        const categoryMap = {
+          reminder: { name: 'Reminder', type: 'info' },
+          urgent: { name: 'Urgent', type: 'warning' },
+          critical: { name: 'Critical', type: 'error' }
+        };
+        
+        announcements.forEach(announcement => {
+          const categoryInfo = categoryMap[announcement.category] || categoryMap.reminder;
+          allUpdates.push({
+            id: `announcement-${announcement._id}`,
+            type: 'announcement',
+            category: categoryInfo.name,
+            categoryType: categoryInfo.type,
+            title: 'New Announcement',
+            content: announcement.content,
+            updatedAt: announcement.createdAt,
+            isAnnouncement: true
+          });
+        });
+      }
+      
+      // Process student updates (document uploads and status changes)
       if (studentsResponse.data.success) {
         const students = studentsResponse.data.data?.students || [];
         
-        // Get recent updates (students with statusUpdatedAt in last 7 days)
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        
-        const updates = students
-          .filter(student => {
-            if (!student.statusUpdatedAt) return false;
-            const updatedAt = new Date(student.statusUpdatedAt);
-            return updatedAt >= sevenDaysAgo;
-          })
-          .sort((a, b) => {
-            const dateA = new Date(a.statusUpdatedAt || a.updatedAt);
-            const dateB = new Date(b.statusUpdatedAt || b.updatedAt);
-            return dateB - dateA;
-          })
-          .slice(0, 10)
-          .map(student => ({
-            id: student._id,
-            studentId: student._id,
-            studentName: student.fullName,
-            status: student.status || 'Under Review',
-            updatedAt: student.statusUpdatedAt || student.updatedAt,
-            university: student.university || 'N/A',
-            course: student.course || 'N/A'
-          }));
-        
-        setRecentUpdates(updates);
+        students.forEach(student => {
+          const docCount = student.documents?.length || 0;
+          const updatedAt = student.updatedAt || student.createdAt;
+          
+          // Document uploads
+          if (docCount > 0 && student.documents && student.documents.length > 0) {
+            const lastDocUpdate = student.documents[student.documents.length - 1]?.uploadedAt || updatedAt;
+            allUpdates.push({
+              id: `doc-${student._id}`,
+              type: 'document',
+              studentId: student._id,
+              studentName: student.fullName,
+              title: `Documents uploaded for ${student.fullName}`,
+              subtitle: `${docCount} document${docCount > 1 ? 's' : ''} uploaded`,
+              updatedAt: lastDocUpdate,
+              docCount: docCount
+            });
+          }
+          
+          // Status updates (only if status was updated recently)
+          if (student.statusUpdatedAt) {
+            const statusUpdateDate = new Date(student.statusUpdatedAt);
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            
+            if (statusUpdateDate >= sevenDaysAgo) {
+              allUpdates.push({
+                id: `status-${student._id}`,
+                type: 'status',
+                studentId: student._id,
+                studentName: student.fullName,
+                title: `Status updated for ${student.fullName}`,
+                subtitle: `Status: ${student.status || 'Under Review'}`,
+                updatedAt: student.statusUpdatedAt,
+                status: student.status || 'Under Review'
+              });
+            }
+          }
+        });
       }
+      
+      // Sort all updates by date (most recent first)
+      allUpdates.sort((a, b) => {
+        const dateA = new Date(a.updatedAt);
+        const dateB = new Date(b.updatedAt);
+        return dateB - dateA;
+      });
+      
+      // Limit to 15 most recent updates
+      setRecentUpdates(allUpdates.slice(0, 15));
     } catch (error) {
       console.error('Error fetching notifications:', error);
       // Don't clear existing data on error, just log it
@@ -218,24 +272,54 @@ const PartnerNotificationsPopup = ({ isOpen, onClose }) => {
                     {recentUpdates.map((update) => (
                       <div
                         key={update.id}
-                        className="partner-notification-item"
-                        onClick={() => handleUpdateClick(update)}
+                        className={`partner-notification-item ${update.type || ''}`}
+                        onClick={() => update.studentId ? handleUpdateClick(update) : undefined}
                       >
-                        <div className="partner-notification-avatar">
-                          {update.studentName?.charAt(0)?.toUpperCase() || '👤'}
-                        </div>
-                        <div className="partner-notification-content">
-                          <div className="partner-notification-header">
-                            <span className="partner-notification-student">{update.studentName || 'Unknown Student'}</span>
-                            <span className="partner-notification-time">{formatTime(update.updatedAt)}</span>
-                          </div>
-                          <div className="partner-notification-status">
-                            Status: <strong>{update.status}</strong>
-                          </div>
-                          <div className="partner-notification-meta">
-                            {update.university} • {update.course}
-                          </div>
-                        </div>
+                        {update.type === 'announcement' ? (
+                          <>
+                            <div className={`partner-notification-badge partner-notification-badge-${update.categoryType || 'info'}`}>
+                              {update.category === 'Urgent' ? '⚠️' : update.category === 'Critical' ? '🚨' : '📋'}
+                            </div>
+                            <div className="partner-notification-content">
+                              <div className="partner-notification-header">
+                                <span className="partner-notification-category">{update.category}</span>
+                                <span className="partner-notification-time">{formatTime(update.updatedAt)}</span>
+                              </div>
+                              <div className="partner-notification-title">{update.title}</div>
+                              <div className="partner-notification-message">
+                                {update.content?.length > 80 ? update.content.substring(0, 80) + '...' : update.content}
+                              </div>
+                            </div>
+                          </>
+                        ) : update.type === 'document' ? (
+                          <>
+                            <div className="partner-notification-avatar">
+                              📄
+                            </div>
+                            <div className="partner-notification-content">
+                              <div className="partner-notification-header">
+                                <span className="partner-notification-student">{update.studentName || 'Unknown Student'}</span>
+                                <span className="partner-notification-time">{formatTime(update.updatedAt)}</span>
+                              </div>
+                              <div className="partner-notification-title">{update.title}</div>
+                              <div className="partner-notification-meta">{update.subtitle}</div>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="partner-notification-avatar">
+                              {update.studentName?.charAt(0)?.toUpperCase() || '👤'}
+                            </div>
+                            <div className="partner-notification-content">
+                              <div className="partner-notification-header">
+                                <span className="partner-notification-student">{update.studentName || 'Unknown Student'}</span>
+                                <span className="partner-notification-time">{formatTime(update.updatedAt)}</span>
+                              </div>
+                              <div className="partner-notification-title">{update.title}</div>
+                              <div className="partner-notification-meta">{update.subtitle}</div>
+                            </div>
+                          </>
+                        )}
                       </div>
                     ))}
                   </div>

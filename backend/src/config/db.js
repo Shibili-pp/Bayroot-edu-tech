@@ -1,7 +1,15 @@
 const mongoose = require('mongoose');
 const { MONGO_URI } = require('./env');
 
-const connectDB = async () => {
+/**
+ * Connect to MongoDB with retry logic and exponential backoff
+ * REFACTORED: Added retry mechanism (5 attempts) with exponential backoff
+ * If all retries fail, gracefully exit to prevent server running without DB
+ */
+const connectDB = async (retryCount = 0) => {
+  const maxRetries = 5;
+  const baseDelay = 1000; // Start with 1 second delay
+
   try {
     // Connection options for better error handling
     // Disable buffering - fail fast if not connected
@@ -28,9 +36,27 @@ const connectDB = async () => {
       console.log('MongoDB reconnected');
     });
   } catch (error) {
-    console.error('MongoDB connection error:', error.message);
-    // Don't exit immediately - allow server to start but log the error
-    // This way the server can still respond with proper error messages
+    console.error(`MongoDB connection error (attempt ${retryCount + 1}/${maxRetries}):`, error.message);
+    
+    // REFACTORED: Retry with exponential backoff
+    if (retryCount < maxRetries - 1) {
+      // Calculate exponential backoff delay: 1s, 2s, 4s, 8s, 16s
+      const delay = baseDelay * Math.pow(2, retryCount);
+      console.log(`Retrying MongoDB connection in ${delay / 1000} seconds...`);
+      
+      // Wait before retrying
+      await new Promise(resolve => setTimeout(resolve, delay));
+      
+      // Recursive retry
+      return connectDB(retryCount + 1);
+    } else {
+      // REFACTORED: All retries exhausted - gracefully exit
+      // Server cannot function without database connection
+      console.error('Failed to connect to MongoDB after', maxRetries, 'attempts');
+      console.error('Exiting process to prevent server from running without database connection');
+      console.error('Please ensure MongoDB is running and MONGO_URI is correct');
+      process.exit(1); // Exit with error code
+    }
   }
 };
 

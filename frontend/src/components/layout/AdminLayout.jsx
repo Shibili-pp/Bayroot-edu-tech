@@ -5,6 +5,7 @@ import logo from '../../assets/EDU CONNECT.png';
 import NewAnnouncementModal from '../NewAnnouncementModal';
 import NotificationsPopup from '../NotificationsPopup';
 import api from '../../api/axios';
+import { getSocket, onUnreadCountUpdate } from '../../services/socket.service';
 import './AdminLayout.css';
 
 /**
@@ -148,35 +149,45 @@ const AdminLayout = ({ children }) => {
     },
   ];
 
-  // Fetch unread comments count
+  // ARCHITECTURE IMPROVEMENT: WebSocket-based real-time unread count updates
+  // Replaces polling-based system with efficient WebSocket events
   useEffect(() => {
-    const fetchUnreadCount = async () => {
+    // Initial fetch on mount (fallback if WebSocket not ready)
+    const fetchInitialCount = async () => {
       try {
-        const response = await api.get('/comments/unread/partner?limit=1', {
-          cache: false
+        const response = await api.get('/comments/unread/partner?limit=100', {
+          cacheTTL: 30000
         });
         if (response.data.success) {
-          // Get total count from a separate call or use the limit
-          const fullResponse = await api.get('/comments/unread/partner?limit=100', {
-            cache: false
-          });
-          if (fullResponse.data.success) {
-            setUnreadCount(fullResponse.data.data?.comments?.length || 0);
-          }
+          setUnreadCount(response.data.data?.comments?.length || 0);
         }
       } catch (error) {
-        console.error('Error fetching unread count:', error);
-        setUnreadCount(0);
+        if (error.response?.status !== 429) {
+          console.error('Error fetching initial unread count:', error);
+        }
       }
     };
 
-    // Fetch count on mount and when notifications popup closes
-    fetchUnreadCount();
-    
-    // Refresh count every 30 seconds
-    const interval = setInterval(fetchUnreadCount, 30000);
-    
-    return () => clearInterval(interval);
+    fetchInitialCount();
+
+    // ARCHITECTURE: Listen to WebSocket events for real-time updates
+    // This eliminates the need for polling intervals
+    const socket = getSocket();
+    if (socket && socket.connected) {
+      // Set up WebSocket listener for unread count updates
+      const cleanup = onUnreadCountUpdate((count, timestamp) => {
+        console.log('Socket.IO: Received unread count update:', count);
+        setUnreadCount(count);
+      });
+
+      // Cleanup listener on unmount
+      return cleanup;
+    } else {
+      // Fallback: If WebSocket not connected, use polling (backward compatibility)
+      console.warn('Socket.IO not connected, falling back to polling');
+      const interval = setInterval(fetchInitialCount, 60000);
+      return () => clearInterval(interval);
+    }
   }, [isNotificationsOpen]);
 
   // Get user initials for avatar
@@ -326,15 +337,18 @@ const AdminLayout = ({ children }) => {
         isOpen={isNotificationsOpen}
         onClose={() => {
           setIsNotificationsOpen(false);
-          // Refresh count when popup closes
+          // REFACTORED: Use caching when refreshing count after popup closes
+          // This prevents unnecessary API calls and reduces rate limiting risk
           setTimeout(() => {
-            api.get('/comments/unread/partner?limit=100', { cache: false })
+            api.get('/comments/unread/partner?limit=100', { cacheTTL: 30000 })
               .then(response => {
                 if (response.data.success) {
                   setUnreadCount(response.data.data?.comments?.length || 0);
                 }
               })
-              .catch(() => setUnreadCount(0));
+              .catch(() => {
+                // Silently fail - don't reset count on error to avoid UI flickering
+              });
           }, 500);
         }}
       />
