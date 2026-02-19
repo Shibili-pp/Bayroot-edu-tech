@@ -13,7 +13,9 @@ const UpdateTimeline = () => {
   const [formData, setFormData] = useState({
     fromStatus: '',
     toStatus: '',
-    minHours: 0,
+    timeValue: 0,
+    timeUnit: 'hours',
+    minHours: 0, // Keep for backward compatibility
     isActive: true
   });
   const [error, setError] = useState('');
@@ -65,6 +67,8 @@ const UpdateTimeline = () => {
       setFormData({
         fromStatus: rule.fromStatus,
         toStatus: rule.toStatus,
+        timeValue: rule.timeValue !== undefined ? rule.timeValue : rule.minHours,
+        timeUnit: rule.timeUnit || 'hours',
         minHours: rule.minHours,
         isActive: rule.isActive
       });
@@ -73,6 +77,8 @@ const UpdateTimeline = () => {
       setFormData({
         fromStatus: '',
         toStatus: '',
+        timeValue: 0,
+        timeUnit: 'hours',
         minHours: 0,
         isActive: true
       });
@@ -87,6 +93,8 @@ const UpdateTimeline = () => {
     setFormData({
       fromStatus: '',
       toStatus: '',
+      timeValue: 0,
+      timeUnit: 'hours',
       minHours: 0,
       isActive: true
     });
@@ -107,16 +115,29 @@ const UpdateTimeline = () => {
       return;
     }
 
-    if (formData.minHours < 0) {
-      setError('Minimum hours must be 0 or greater');
+    if (formData.timeValue < 0) {
+      setError('Time value must be 0 or greater');
+      return;
+    }
+
+    if (!formData.timeUnit) {
+      setError('Please select a time unit');
       return;
     }
 
     setSubmitting(true);
 
     try {
+      const payload = {
+        fromStatus: formData.fromStatus,
+        toStatus: formData.toStatus,
+        timeValue: formData.timeValue,
+        timeUnit: formData.timeUnit,
+        isActive: formData.isActive
+      };
+
       if (editingRule) {
-        const response = await api.put(`/status-timeline/${editingRule._id}`, formData);
+        const response = await api.put(`/status-timeline/${editingRule._id}`, payload);
         if (response.data.success) {
           await fetchRules();
           handleCloseModal();
@@ -124,7 +145,7 @@ const UpdateTimeline = () => {
           setError(response.data.message || 'Failed to update timeline rule');
         }
       } else {
-        const response = await api.post('/status-timeline', formData);
+        const response = await api.post('/status-timeline', payload);
         if (response.data.success) {
           await fetchRules();
           handleCloseModal();
@@ -140,20 +161,35 @@ const UpdateTimeline = () => {
   };
 
   const handleDeleteClick = (rule) => {
+    // Ensure ID is a string
+    const ruleId = rule._id || rule.id;
+    if (!ruleId) {
+      console.error('Rule ID is missing:', rule);
+      alert('Cannot delete: Rule ID is missing');
+      return;
+    }
+    
     setDeleteConfirm({
       show: true,
-      id: rule._id,
+      id: String(ruleId), // Convert to string to ensure proper URL encoding
       fromStatus: rule.fromStatus,
       toStatus: rule.toStatus
     });
   };
 
   const handleDeleteConfirm = async () => {
-    if (!deleteConfirm.id) return;
+    if (!deleteConfirm.id) {
+      console.error('Delete confirm ID is missing');
+      return;
+    }
 
     try {
       setDeleting(true);
-      const response = await api.delete(`/status-timeline/${deleteConfirm.id}`);
+      // Ensure ID is properly encoded in URL
+      const ruleId = String(deleteConfirm.id).trim();
+      console.log('Deleting timeline rule with ID:', ruleId);
+      
+      const response = await api.delete(`/status-timeline/${encodeURIComponent(ruleId)}`);
       
       if (response.data.success) {
         await fetchRules();
@@ -163,6 +199,11 @@ const UpdateTimeline = () => {
       }
     } catch (error) {
       console.error('Error deleting timeline rule:', error);
+      console.error('Error details:', {
+        url: error.config?.url,
+        status: error.response?.status,
+        message: error.response?.data?.message
+      });
       alert(error.response?.data?.message || 'Failed to delete timeline rule');
     } finally {
       setDeleting(false);
@@ -206,7 +247,7 @@ const UpdateTimeline = () => {
                 <tr>
                   <th>From Status</th>
                   <th>To Status</th>
-                  <th>Minimum Hours</th>
+                  <th>Minimum Time</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -221,7 +262,9 @@ const UpdateTimeline = () => {
                       <span className="status-badge">{rule.toStatus}</span>
                     </td>
                     <td>
-                      <span className="hours-badge">{rule.minHours} hours</span>
+                      <span className="hours-badge">
+                        {rule.timeValue !== undefined ? rule.timeValue : rule.minHours} {rule.timeUnit || 'hours'}
+                      </span>
                     </td>
                     <td>
                       <span className={`status-indicator ${rule.isActive ? 'active' : 'inactive'}`}>
@@ -312,17 +355,32 @@ const UpdateTimeline = () => {
                     </select>
                   </div>
                   <div className="form-group">
-                    <label>Minimum Hours *</label>
-                    <input
-                      type="number"
-                      value={formData.minHours}
-                      onChange={(e) => setFormData({ ...formData, minHours: parseInt(e.target.value) || 0 })}
-                      min="0"
-                      required
-                      disabled={submitting}
-                      placeholder="e.g., 48"
-                    />
-                    <small>Minimum hours required before status can change from "{formData.fromStatus || '...'}" to "{formData.toStatus || '...'}"</small>
+                    <label>Minimum Time *</label>
+                    <div className="time-input-group">
+                      <input
+                        type="number"
+                        value={formData.timeValue}
+                        onChange={(e) => setFormData({ ...formData, timeValue: parseFloat(e.target.value) || 0 })}
+                        min="0"
+                        step="0.1"
+                        required
+                        disabled={submitting}
+                        placeholder="e.g., 1"
+                        className="time-value-input"
+                      />
+                      <select
+                        value={formData.timeUnit}
+                        onChange={(e) => setFormData({ ...formData, timeUnit: e.target.value })}
+                        required
+                        disabled={submitting}
+                        className="time-unit-select"
+                      >
+                        <option value="minutes">Minutes</option>
+                        <option value="hours">Hours</option>
+                        <option value="days">Days</option>
+                      </select>
+                    </div>
+                    <small>Minimum time required before status can change from "{formData.fromStatus || '...'}" to "{formData.toStatus || '...'}"</small>
                   </div>
                   <div className="form-group">
                     <label className="checkbox-label">
@@ -417,4 +475,5 @@ const UpdateTimeline = () => {
 };
 
 export default UpdateTimeline;
+
 

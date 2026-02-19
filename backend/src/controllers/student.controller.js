@@ -108,6 +108,7 @@ const createStudent = async (req, res) => {
       };
     }).filter(doc => doc && doc.fileId); // Ensure all documents have fileId
     
+    const now = new Date();
     const student = new Student({
       fullName,
       email,
@@ -120,7 +121,9 @@ const createStudent = async (req, res) => {
       intakeId: intakeId || null,
       intakeYear: intakeYear || null,
       partnerId: userId,
-      documents: processedDocuments
+      documents: processedDocuments,
+      status: 'Under Review', // Explicitly set default status
+      statusUpdatedAt: now // Explicitly set statusUpdatedAt when student is created
     });
 
     await student.save();
@@ -295,28 +298,9 @@ const updateStudent = async (req, res) => {
       if (validStatuses.includes(status)) {
         // Check if status is actually changing
         if (student.status !== status) {
-          // Check timeline rule for this status transition
-          const timelineRule = await StatusTimeline.findOne({
-            fromStatus: student.status,
-            toStatus: status,
-            isActive: true
-          });
-
-          if (timelineRule && timelineRule.minHours > 0) {
-            // Check if enough time has passed since last status update
-            const statusUpdatedAt = student.updatedAt || student.createdAt;
-            const now = new Date();
-            const hoursSinceUpdate = (now - new Date(statusUpdatedAt)) / (1000 * 60 * 60);
-
-            if (hoursSinceUpdate < timelineRule.minHours) {
-              const remainingHours = Math.ceil(timelineRule.minHours - hoursSinceUpdate);
-              return sendError(
-                res,
-                `Status cannot be changed from "${student.status}" to "${status}" yet. Please wait ${remainingHours} more hour${remainingHours > 1 ? 's' : ''}.`,
-                400
-              );
-            }
-          }
+          // Admins can change status anytime - no restrictions
+          // Only update statusUpdatedAt when status changes
+          student.statusUpdatedAt = new Date();
         }
         student.status = status;
       } else {

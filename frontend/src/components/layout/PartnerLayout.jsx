@@ -1,8 +1,10 @@
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import logo from '../../assets/EDU CONNECT.png';
 import NewApplicationModal from '../NewApplicationModal';
+import PartnerNotificationsPopup from '../PartnerNotificationsPopup';
+import api from '../../api/axios';
 import './PartnerLayout.css';
 
 /**
@@ -14,6 +16,97 @@ const PartnerLayout = ({ children }) => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isNewApplicationOpen, setIsNewApplicationOpen] = useState(false);
+  const [isApproved, setIsApproved] = useState(true);
+  const [checkingApproval, setCheckingApproval] = useState(true);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const checkApprovalStatus = async () => {
+      // First check if user object has isApproved from login
+      if (user?.isApproved !== undefined) {
+        setIsApproved(user.isApproved);
+        setCheckingApproval(false);
+        return;
+      }
+
+      // If not in user object, check via API
+      try {
+        const response = await api.get('/partner/approval-status');
+        if (response.data.success) {
+          setIsApproved(response.data.data?.isApproved ?? false);
+        }
+      } catch (error) {
+        console.error('Error checking approval status:', error);
+        // Default to not approved if check fails
+        setIsApproved(false);
+      } finally {
+        setCheckingApproval(false);
+      }
+    };
+
+    if (user?.role === 'PARTNER') {
+      checkApprovalStatus();
+    } else {
+      setCheckingApproval(false);
+    }
+  }, [user]);
+
+  // Poll for approval status changes every 30 seconds if not approved
+  useEffect(() => {
+    if (!isApproved && user?.role === 'PARTNER' && !checkingApproval) {
+      const interval = setInterval(async () => {
+        try {
+          const response = await api.get('/partner/approval-status', { cache: false });
+          if (response.data.success) {
+            const approved = response.data.data?.isApproved ?? false;
+            if (approved !== isApproved) {
+              setIsApproved(approved);
+              // Refresh page to get full access
+              if (approved) {
+                window.location.reload();
+              }
+            }
+          }
+        } catch (error) {
+          // Silently fail - don't spam console
+        }
+      }, 30000); // Check every 30 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [isApproved, user, checkingApproval]);
+
+  // Fetch unread comments count
+  useEffect(() => {
+    if (!isApproved || checkingApproval) return;
+
+    const fetchUnreadCount = async () => {
+      try {
+        // Use cache with TTL to reduce API calls
+        const response = await api.get('/comments/unread/admin?limit=100', {
+          cacheTTL: 20 * 1000 // Cache for 20 seconds
+        });
+        if (response.data.success) {
+          setUnreadCount(response.data.data?.comments?.length || 0);
+        }
+      } catch (error) {
+        // Don't log rate limit errors, just silently fail
+        if (error.response?.status !== 429) {
+          console.error('Error fetching unread count:', error);
+        }
+        // Don't reset count on error to avoid flickering
+      }
+    };
+
+    // Fetch count on mount
+    fetchUnreadCount();
+    
+    // Refresh count every 60 seconds (less frequent to reduce rate limiting)
+    const interval = setInterval(fetchUnreadCount, 60000);
+    
+    return () => clearInterval(interval);
+  }, [isApproved, checkingApproval]);
 
   const handleLogout = async () => {
     await logout();
@@ -93,8 +186,15 @@ const PartnerLayout = ({ children }) => {
             <Link
               key={item.path}
               to={item.path}
-              className={`nav-item ${isActive(item.path) ? 'active' : ''}`}
-              onClick={() => setSidebarOpen(false)}
+              className={`nav-item ${isActive(item.path) ? 'active' : ''} ${!isApproved ? 'disabled' : ''}`}
+              onClick={(e) => {
+                if (!isApproved) {
+                  e.preventDefault();
+                  return;
+                }
+                setSidebarOpen(false);
+              }}
+              title={!isApproved ? 'Please wait for approval from administrator' : ''}
             >
               <span className="nav-icon">{item.icon}</span>
               <span className="nav-label">{item.label}</span>
@@ -166,15 +266,31 @@ const PartnerLayout = ({ children }) => {
             />
           </div>
           <div className="header-actions">
-            <button className="header-icon-btn" aria-label="Notifications">
+            <button 
+              className="header-icon-btn notification-btn" 
+              aria-label="Notifications"
+              onClick={() => {
+                if (!isApproved || checkingApproval) return;
+                setIsNotificationsOpen(!isNotificationsOpen);
+              }}
+              disabled={!isApproved || checkingApproval}
+            >
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                 <path d="M10 2C7.23858 2 5 4.23858 5 7V10.5858L3.29289 12.2929C3.10536 12.4804 3 12.7348 3 13V15C3 15.5523 3.44772 16 4 16H16C16.5523 16 17 15.5523 17 15V13C17 12.7348 16.8946 12.4804 16.7071 12.2929L15 10.5858V7C15 4.23858 12.7614 2 10 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                 <path d="M8 16V17C8 18.1046 8.89543 19 10 19C11.1046 19 12 18.1046 12 17V16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
+              {unreadCount > 0 && (
+                <span className="notification-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
+              )}
             </button>
             <button 
               className="btn-new-application"
-              onClick={() => setIsNewApplicationOpen(true)}
+              onClick={() => {
+                if (!isApproved || checkingApproval) return;
+                setIsNewApplicationOpen(true);
+              }}
+              disabled={!isApproved || checkingApproval}
+              title={!isApproved ? 'Please wait for approval from administrator' : 'Create new student application'}
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ marginRight: '6px' }}>
                 <path d="M8 3V13M3 8H13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
@@ -186,7 +302,41 @@ const PartnerLayout = ({ children }) => {
 
         {/* Main Content */}
         <main className="layout-main">
-          {children}
+          {checkingApproval ? (
+            <div className="approval-checking">
+              <div className="spinner"></div>
+              <p>Checking approval status...</p>
+            </div>
+          ) : !isApproved ? (
+            <div className="approval-pending-container">
+              <div className="approval-pending-card">
+                <div className="approval-icon">
+                  <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+                    <circle cx="32" cy="32" r="30" stroke="#f59e0b" strokeWidth="2" fill="#fef3c7"/>
+                    <path d="M32 20V36M32 44H32.02" stroke="#f59e0b" strokeWidth="3" strokeLinecap="round"/>
+                  </svg>
+                </div>
+                <h2>Account Pending Approval</h2>
+                <p className="approval-message">
+                  Your partner account is currently pending approval from the administrator.
+                </p>
+                <p className="approval-submessage">
+                  Once your account has been reviewed and approved, you will have full access to all features.
+                  Please wait for the administrator to complete the approval process.
+                </p>
+                <div className="approval-info">
+                  <p><strong>What happens next?</strong></p>
+                  <ul>
+                    <li>An administrator will review your registration</li>
+                    <li>You will receive access once approved</li>
+                    <li>This page will automatically update when your account is approved</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          ) : (
+            children
+          )}
         </main>
       </div>
 
@@ -199,6 +349,28 @@ const PartnerLayout = ({ children }) => {
           window.location.reload();
         }}
       />
+
+      {/* Notifications Popup */}
+      {isApproved && !checkingApproval && (
+        <PartnerNotificationsPopup
+          isOpen={isNotificationsOpen}
+          onClose={() => {
+            setIsNotificationsOpen(false);
+            // Refresh count when popup closes (use cache to avoid rate limiting)
+            setTimeout(() => {
+              api.get('/comments/unread/admin?limit=100', { cacheTTL: 10 * 1000 })
+                .then(response => {
+                  if (response.data.success) {
+                    setUnreadCount(response.data.data?.comments?.length || 0);
+                  }
+                })
+                .catch(() => {
+                  // Silently fail - don't reset count on error
+                });
+            }, 500);
+          }}
+        />
+      )}
     </div>
   );
 };

@@ -38,8 +38,30 @@ const Dashboard = () => {
       let studentUpdates = [];
       
       try {
-        // Fetch all students (without pagination limit to get all)
-        const studentsResponse = await api.get('/students?limit=1000');
+        // Fetch students with pagination (backend enforces max 50 per page)
+        let allStudents = [];
+        let page = 1;
+        const limit = 50;
+        let hasMore = true;
+
+        while (hasMore && allStudents.length < 200) {
+          const response = await api.get(`/students?page=${page}&limit=${limit}`, {
+            cacheTTL: 30 * 1000
+          });
+          
+          if (response.data.success) {
+            const students = response.data.data?.students || [];
+            allStudents = [...allStudents, ...students];
+            
+            const pagination = response.data.data?.pagination;
+            hasMore = pagination && page < pagination.pages && allStudents.length < 200;
+            page++;
+          } else {
+            hasMore = false;
+          }
+        }
+
+        const studentsResponse = { data: { success: true, data: { students: allStudents } } };
         if (studentsResponse.data.success) {
           const students = studentsResponse.data.data?.students || [];
           
@@ -321,7 +343,30 @@ const Dashboard = () => {
     // Refresh data after successful upload without full page reload
     setLoading(true);
     try {
-      const studentsResponse = await api.get('/students?limit=1000');
+      // Fetch students with pagination
+      let allStudents = [];
+      let page = 1;
+      const limit = 50;
+      let hasMore = true;
+
+      while (hasMore && allStudents.length < 200) {
+        const response = await api.get(`/students?page=${page}&limit=${limit}`, {
+          cacheTTL: 30 * 1000
+        });
+        
+        if (response.data.success) {
+          const students = response.data.data?.students || [];
+          allStudents = [...allStudents, ...students];
+          
+          const pagination = response.data.data?.pagination;
+          hasMore = pagination && page < pagination.pages && allStudents.length < 200;
+          page++;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      const studentsResponse = { data: { success: true, data: { students: allStudents } } };
       if (studentsResponse.data.success) {
         const students = studentsResponse.data.data?.students || [];
         

@@ -48,10 +48,30 @@ const Applications = () => {
   const fetchApplications = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/students?limit=1000');
-      if (response.data.success) {
-        setApplications(response.data.data?.students || []);
+      // Fetch students with pagination
+      let allStudents = [];
+      let page = 1;
+      const limit = 50;
+      let hasMore = true;
+
+      while (hasMore) {
+        const response = await api.get(`/students?page=${page}&limit=${limit}`, {
+          cacheTTL: 30 * 1000
+        });
+        
+        if (response.data.success) {
+          const students = response.data.data?.students || [];
+          allStudents = [...allStudents, ...students];
+          
+          const pagination = response.data.data?.pagination;
+          hasMore = pagination && page < pagination.pages;
+          page++;
+        } else {
+          hasMore = false;
+        }
       }
+
+      setApplications(allStudents);
     } catch (error) {
       console.error('Error fetching applications:', error);
     } finally {

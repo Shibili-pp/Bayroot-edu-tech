@@ -1,8 +1,10 @@
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import logo from '../../assets/EDU CONNECT.png';
 import NewAnnouncementModal from '../NewAnnouncementModal';
+import NotificationsPopup from '../NotificationsPopup';
+import api from '../../api/axios';
 import './AdminLayout.css';
 
 /**
@@ -14,6 +16,8 @@ const AdminLayout = ({ children }) => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const handleLogout = async () => {
     await logout();
@@ -55,21 +59,11 @@ const AdminLayout = ({ children }) => {
     },
     { 
       path: '/admin/consultancies', 
-      label: 'Consultancies', 
+      label: 'Partners', 
       icon: (
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
           <path d="M9 9C11.0711 9 12.75 7.32107 12.75 5.25C12.75 3.17893 11.0711 1.5 9 1.5C6.92893 1.5 5.25 3.17893 5.25 5.25C5.25 7.32107 6.92893 9 9 9Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
           <path d="M3.75 16.5C3.75 13.5975 6.1425 11.25 9 11.25C11.8575 11.25 14.25 13.5975 14.25 16.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      )
-    },
-    { 
-      path: '/admin/notifications', 
-      label: 'Notifications', 
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-          <path d="M9 2.25C6.92893 2.25 5.25 3.92893 5.25 6V9.75L3.75 12.75H14.25L12.75 9.75V6C12.75 3.92893 11.0711 2.25 9 2.25Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M6.75 15.75C6.75 16.5784 7.42157 17.25 8.25 17.25H9.75C10.5784 17.25 11.25 16.5784 11.25 15.75" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       )
     },
@@ -153,6 +147,37 @@ const AdminLayout = ({ children }) => {
       )
     },
   ];
+
+  // Fetch unread comments count
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      try {
+        const response = await api.get('/comments/unread/partner?limit=1', {
+          cache: false
+        });
+        if (response.data.success) {
+          // Get total count from a separate call or use the limit
+          const fullResponse = await api.get('/comments/unread/partner?limit=100', {
+            cache: false
+          });
+          if (fullResponse.data.success) {
+            setUnreadCount(fullResponse.data.data?.comments?.length || 0);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching unread count:', error);
+        setUnreadCount(0);
+      }
+    };
+
+    // Fetch count on mount and when notifications popup closes
+    fetchUnreadCount();
+    
+    // Refresh count every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30000);
+    
+    return () => clearInterval(interval);
+  }, [isNotificationsOpen]);
 
   // Get user initials for avatar
   const getUserInitials = () => {
@@ -256,11 +281,18 @@ const AdminLayout = ({ children }) => {
             />
           </div>
           <div className="header-actions">
-            <button className="header-icon-btn" aria-label="Notifications">
+            <button 
+              className="header-icon-btn notification-btn" 
+              aria-label="Notifications"
+              onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+            >
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                 <path d="M10 2C7.23858 2 5 4.23858 5 7V10.5858L3.29289 12.2929C3.10536 12.4804 3 12.7348 3 13V15C3 15.5523 3.44772 16 4 16H16C16.5523 16 17 15.5523 17 15V13C17 12.7348 16.8946 12.4804 16.7071 12.2929L15 10.5858V7C15 4.23858 12.7614 2 10 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                 <path d="M8 16V17C8 18.1046 8.89543 19 10 19C11.1046 19 12 18.1046 12 17V16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
+              {unreadCount > 0 && (
+                <span className="notification-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
+              )}
             </button>
             <button 
               className="btn-new-application"
@@ -286,6 +318,24 @@ const AdminLayout = ({ children }) => {
         onClose={() => setIsAnnouncementModalOpen(false)}
         onSuccess={(announcement) => {
           setIsAnnouncementModalOpen(false);
+        }}
+      />
+
+      {/* Notifications Popup */}
+      <NotificationsPopup
+        isOpen={isNotificationsOpen}
+        onClose={() => {
+          setIsNotificationsOpen(false);
+          // Refresh count when popup closes
+          setTimeout(() => {
+            api.get('/comments/unread/partner?limit=100', { cache: false })
+              .then(response => {
+                if (response.data.success) {
+                  setUnreadCount(response.data.data?.comments?.length || 0);
+                }
+              })
+              .catch(() => setUnreadCount(0));
+          }, 500);
         }}
       />
     </div>

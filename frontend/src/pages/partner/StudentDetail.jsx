@@ -167,7 +167,30 @@ const StudentDetail = () => {
 
     try {
       // Fetch all students and check for duplicate passport
-      const response = await api.get('/students?limit=10000');
+      // Fetch students with pagination (for dropdown)
+      let allStudents = [];
+      let page = 1;
+      const limit = 50;
+      let hasMore = true;
+
+      while (hasMore && allStudents.length < 100) { // Limit to 100 for dropdown
+        const response = await api.get(`/students?page=${page}&limit=${limit}`, {
+          cacheTTL: 30 * 1000
+        });
+        
+        if (response.data.success) {
+          const students = response.data.data?.students || [];
+          allStudents = [...allStudents, ...students];
+          
+          const pagination = response.data.data?.pagination;
+          hasMore = pagination && page < pagination.pages && allStudents.length < 100;
+          page++;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      const response = { data: { success: true, data: { students: allStudents } } };
       if (response.data.success) {
         const students = response.data.data?.students || [];
         const normalizedPassport = passportNumber.trim().toUpperCase();

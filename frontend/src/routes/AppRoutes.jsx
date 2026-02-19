@@ -15,6 +15,7 @@ import Courses from '../pages/admin/Courses';
 import Intakes from '../pages/admin/Intakes';
 import Announcements from '../pages/admin/Announcements';
 import UpdateTimeline from '../pages/admin/UpdateTimeline';
+import Consultancies from '../pages/admin/Consultancies';
 import PartnerDashboard from '../pages/partner/Dashboard';
 import Students from '../pages/partner/Students';
 import PartnerStudentDetail from '../pages/partner/StudentDetail';
@@ -113,6 +114,7 @@ const AppRoutes = () => {
               <Route path="intakes" element={<Intakes />} />
               <Route path="announcements" element={<Announcements />} />
               <Route path="update-timeline" element={<UpdateTimeline />} />
+              <Route path="consultancies" element={<Consultancies />} />
               <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
             </Routes>
           </ProtectedRoute>

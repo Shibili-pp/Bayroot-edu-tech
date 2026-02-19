@@ -310,3 +310,4 @@ const Intakes = () => {
 
 export default Intakes;
 
+

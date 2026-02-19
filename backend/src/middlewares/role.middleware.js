@@ -47,9 +47,36 @@ const checkPartner = (req, res, next) => {
   next();
 };
 
+/**
+ * Middleware to check if partner is approved
+ */
+const checkPartnerApproved = async (req, res, next) => {
+  try {
+    if (!req.user || req.user.role !== 'PARTNER') {
+      return sendError(res, 'Unauthorized access.', 401);
+    }
+
+    const Partner = require('../models/Partner.model');
+    const partner = await Partner.findById(req.user.userId || req.user.id);
+    
+    if (!partner) {
+      return sendError(res, 'Partner not found.', 404);
+    }
+
+    if (!partner.isApproved) {
+      return sendError(res, 'Your account is pending approval from the administrator. Please wait for approval.', 403);
+    }
+
+    next();
+  } catch (error) {
+    return sendError(res, error.message || 'Error checking partner approval status', 500);
+  }
+};
+
 module.exports = {
   authorize,
   checkAdmin,
-  checkPartner
+  checkPartner,
+  checkPartnerApproved
 };
 

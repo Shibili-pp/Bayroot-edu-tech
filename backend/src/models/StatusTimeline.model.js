@@ -63,6 +63,18 @@ const statusTimelineSchema = new mongoose.Schema({
     min: 0,
     default: 0
   },
+  timeUnit: {
+    type: String,
+    enum: ['minutes', 'hours', 'days'],
+    default: 'hours',
+    required: true
+  },
+  timeValue: {
+    type: Number,
+    required: true,
+    min: 0,
+    default: 0
+  },
   isActive: {
     type: Boolean,
     default: true
@@ -80,4 +92,5 @@ const statusTimelineSchema = new mongoose.Schema({
 statusTimelineSchema.index({ fromStatus: 1, toStatus: 1 }, { unique: true });
 
 module.exports = mongoose.model('StatusTimeline', statusTimelineSchema);
+
 

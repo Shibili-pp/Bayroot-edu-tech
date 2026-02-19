@@ -99,7 +99,8 @@ const register = async (req, res) => {
       user: {
         id: partner._id.toString(),
         role: partner.role,
-        companyName: partner.companyName
+        companyName: partner.companyName,
+        isApproved: partner.isApproved
       }
     }, 'Partner registered successfully', 201);
   } catch (error) {
@@ -154,7 +155,8 @@ const login = async (req, res) => {
       user: {
         id: partner._id.toString(),
         role: partner.role,
-        companyName: partner.companyName
+        companyName: partner.companyName,
+        isApproved: partner.isApproved
       }
     }, 'Login successful');
   } catch (error) {
@@ -210,7 +212,8 @@ const getProfile = async (req, res) => {
         email: partner.email,
         mobileNumber: partner.mobileNumber,
         role: partner.role,
-        isActive: partner.isActive
+        isActive: partner.isActive,
+        isApproved: partner.isApproved
       }
     }, 'Profile retrieved successfully');
   } catch (error) {
@@ -291,6 +294,181 @@ const resetPassword = async (req, res) => {
   }
 };
 
+// Get all partners (Admin only)
+const getAllPartners = async (req, res) => {
+  try {
+    const role = req.user.role;
+
+    if (role !== 'ADMIN') {
+      return sendError(res, 'Only admins can view all partners', 403);
+    }
+
+    const partners = await Partner.find()
+      .select('companyName email mobileNumber createdAt isActive isApproved')
+      .sort({ createdAt: -1 });
+
+    // Log audit
+    await logAudit({
+      userId: req.user.userId || req.user.id,
+      userModel: 'Admin',
+      role,
+      action: 'VIEW_PARTNERS',
+      metadata: { count: partners.length },
+      ipAddress: getClientIp(req),
+      userAgent: req.get('user-agent')
+    });
+
+    return sendSuccess(res, { partners }, 'Partners retrieved successfully');
+  } catch (error) {
+    return sendError(res, error.message, 500);
+  }
+};
+
+// Approve partner (Admin only)
+const approvePartner = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const role = req.user.role;
+    const userId = req.user.userId || req.user.id;
+
+    if (role !== 'ADMIN') {
+      return sendError(res, 'Only admins can approve partners', 403);
+    }
+
+    // Check MongoDB connection before attempting database operations
+    const mongoose = require('mongoose');
+    if (mongoose.connection.readyState !== 1) {
+      console.error('MongoDB not connected. Connection state:', mongoose.connection.readyState);
+      return sendError(res, 'Database connection unavailable. Please ensure MongoDB is running.', 503);
+    }
+
+    const partner = await Partner.findById(id);
+    if (!partner) {
+      return sendError(res, 'Partner not found', 404);
+    }
+
+    // Check if already approved
+    if (partner.isApproved) {
+      return sendSuccess(res, { partner }, 'Partner is already approved');
+    }
+
+    partner.isApproved = true;
+    await partner.save();
+
+    // Log audit (wrap in try-catch to prevent audit failure from blocking the response)
+    try {
+      await logAudit({
+        userId,
+        userModel: 'Admin',
+        role,
+        action: 'UPDATE_PARTNER',
+        targetId: partner._id,
+        targetModel: 'Partner',
+        metadata: { action: 'APPROVE_PARTNER', partnerEmail: partner.email },
+        ipAddress: getClientIp(req),
+        userAgent: req.get('user-agent')
+      });
+    } catch (auditError) {
+      console.error('Audit logging error (non-blocking):', auditError);
+      // Continue even if audit logging fails
+    }
+
+    return sendSuccess(res, { partner }, 'Partner approved successfully');
+  } catch (error) {
+    console.error('Approve partner error:', error);
+    
+    // Handle MongoDB-specific errors
+    if (error.name === 'MongoServerSelectionError' || error.name === 'MongoNetworkError' || error.name === 'MongooseError') {
+      return sendError(res, 'Database connection error. Please ensure MongoDB is running and try again.', 503);
+    }
+    
+    return sendError(res, error.message || 'Failed to approve partner', 500);
+  }
+};
+
+// Reject/Unapprove partner (Admin only)
+const rejectPartner = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const role = req.user.role;
+    const userId = req.user.userId || req.user.id;
+
+    if (role !== 'ADMIN') {
+      return sendError(res, 'Only admins can reject partners', 403);
+    }
+
+    // Check MongoDB connection before attempting database operations
+    const mongoose = require('mongoose');
+    if (mongoose.connection.readyState !== 1) {
+      console.error('MongoDB not connected. Connection state:', mongoose.connection.readyState);
+      return sendError(res, 'Database connection unavailable. Please ensure MongoDB is running.', 503);
+    }
+
+    const partner = await Partner.findById(id);
+    if (!partner) {
+      return sendError(res, 'Partner not found', 404);
+    }
+
+    // Check if already not approved
+    if (!partner.isApproved) {
+      return sendSuccess(res, { partner }, 'Partner is already not approved');
+    }
+
+    partner.isApproved = false;
+    await partner.save();
+
+    // Log audit (wrap in try-catch to prevent audit failure from blocking the response)
+    try {
+      await logAudit({
+        userId,
+        userModel: 'Admin',
+        role,
+        action: 'UPDATE_PARTNER',
+        targetId: partner._id,
+        targetModel: 'Partner',
+        metadata: { action: 'REJECT_PARTNER', partnerEmail: partner.email },
+        ipAddress: getClientIp(req),
+        userAgent: req.get('user-agent')
+      });
+    } catch (auditError) {
+      console.error('Audit logging error (non-blocking):', auditError);
+      // Continue even if audit logging fails
+    }
+
+    return sendSuccess(res, { partner }, 'Partner approval revoked successfully');
+  } catch (error) {
+    console.error('Reject partner error:', error);
+    
+    // Handle MongoDB-specific errors
+    if (error.name === 'MongoServerSelectionError' || error.name === 'MongoNetworkError' || error.name === 'MongooseError') {
+      return sendError(res, 'Database connection error. Please ensure MongoDB is running and try again.', 503);
+    }
+    
+    return sendError(res, error.message || 'Failed to revoke partner approval', 500);
+  }
+};
+
+// Check approval status (doesn't require approval to check)
+const checkApprovalStatus = async (req, res) => {
+  try {
+    const userId = req.user.userId || req.user.id;
+    const role = req.user.role;
+
+    if (role !== 'PARTNER') {
+      return sendError(res, 'Only partners can check approval status', 403);
+    }
+
+    const partner = await Partner.findById(userId).select('isApproved');
+    if (!partner) {
+      return sendError(res, 'Partner not found', 404);
+    }
+
+    return sendSuccess(res, { isApproved: partner.isApproved }, 'Approval status retrieved successfully');
+  } catch (error) {
+    return sendError(res, error.message, 500);
+  }
+};
+
 module.exports = {
   sendSignupOTP,
   register,
@@ -298,6 +476,10 @@ module.exports = {
   logout,
   getProfile,
   sendForgotPasswordOTP,
-  resetPassword
+  resetPassword,
+  getAllPartners,
+  approvePartner,
+  rejectPartner,
+  checkApprovalStatus
 };
 

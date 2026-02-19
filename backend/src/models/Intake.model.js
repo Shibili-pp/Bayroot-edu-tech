@@ -26,3 +26,4 @@ intakeSchema.index({ name: 1, countryId: 1 }, { unique: true });
 
 module.exports = mongoose.model('Intake', intakeSchema);
 
+

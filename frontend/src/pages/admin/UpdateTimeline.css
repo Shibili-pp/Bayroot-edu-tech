@@ -252,6 +252,22 @@
   transition: all 0.2s;
 }
 
+.time-input-group {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.time-value-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.time-unit-select {
+  flex: 0 0 140px;
+  min-width: 140px;
+}
+
 .form-group select:focus,
 .form-group input[type="number"]:focus {
   outline: none;
@@ -542,4 +558,5 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
 

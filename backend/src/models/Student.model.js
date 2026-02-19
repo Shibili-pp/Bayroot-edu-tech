@@ -93,6 +93,10 @@ const studentSchema = new mongoose.Schema({
     default: 'Under Review',
     trim: true
   },
+  statusUpdatedAt: {
+    type: Date,
+    default: Date.now
+  },
   documents: [{
     fileId: {
       type: String,

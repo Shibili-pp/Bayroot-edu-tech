@@ -50,6 +50,8 @@ const auditLogSchema = new mongoose.Schema({
       'CREATE_COMMENT',
       'UPDATE_COMMENT',
       'DELETE_COMMENT',
+      'VIEW_PARTNERS',
+      'UPDATE_PARTNER',
       'LOGIN',
       'LOGOUT'
     ]
@@ -60,7 +62,7 @@ const auditLogSchema = new mongoose.Schema({
   },
   targetModel: {
     type: String,
-    enum: ['Student', 'File', 'Announcement', 'University', 'Country', 'Course', 'Intake', 'Comment', 'StatusTimeline']
+    enum: ['Student', 'File', 'Announcement', 'University', 'Country', 'Course', 'Intake', 'Comment', 'StatusTimeline', 'Partner']
   },
   metadata: {
     type: mongoose.Schema.Types.Mixed,

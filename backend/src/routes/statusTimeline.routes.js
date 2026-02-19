@@ -12,6 +12,9 @@ router.use(verifyToken);
 // Get timeline rule for status transition (public endpoint for checking)
 router.get('/check', statusTimelineController.getTimelineRuleForTransition);
 
+// Get pending status updates (Admin only)
+router.get('/pending-updates', checkAdmin, statusTimelineController.getPendingStatusUpdates);
+
 // Get all timeline rules (Admin only)
 router.get('/', checkAdmin, statusTimelineController.getAllTimelineRules);
 
@@ -28,4 +31,5 @@ router.put('/:id', checkAdmin, statusTimelineController.updateTimelineRule);
 router.delete('/:id', checkAdmin, statusTimelineController.deleteTimelineRule);
 
 module.exports = router;
+
 
