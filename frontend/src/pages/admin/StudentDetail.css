@@ -447,6 +447,50 @@
   background: #fafbfc;
 }
 
+/* Apply for Offer Letter Button Section */
+.apply-offer-letter-section {
+  margin-top: 1.5rem;
+  margin-bottom: 2rem;
+  padding: 1.25rem;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border: 1px solid #93c5fd;
+  border-radius: 8px;
+}
+
+.btn-apply-offer-letter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+}
+
+.btn-apply-offer-letter:hover:not(:disabled) {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(37, 99, 235, 0.3);
+}
+
+.btn-apply-offer-letter:disabled {
+  opacity: 0.8;
+  cursor: not-allowed;
+}
+
+.apply-offer-letter-hint {
+  margin: 0.75rem 0 0 0;
+  font-size: 0.8125rem;
+  color: #1e40af;
+  max-width: 500px;
+}
+
 /* Offer Letter Section */
 .offer-letter-section {
   margin-top: 2rem;

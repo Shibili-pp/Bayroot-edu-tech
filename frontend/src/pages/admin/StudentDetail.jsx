@@ -16,6 +16,7 @@ const StudentDetail = () => {
   const [error, setError] = useState('');
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [downloadingDocId, setDownloadingDocId] = useState(null);
+  const [applyingOfferLetter, setApplyingOfferLetter] = useState(false);
   const [activeSection, setActiveSection] = useState('offer-letter');
   const [uploadingOfferLetter, setUploadingOfferLetter] = useState(false);
   const [offerLetterFile, setOfferLetterFile] = useState(null);
@@ -121,17 +122,17 @@ const StudentDetail = () => {
     'Under Review',
     'Offer Requested',
     'Offer Received',
-    'Application payment 1',
+    'Application payment 1 received',
     'Application Moved',
     'Ministry Submitted',
     'Exam issued',
-    'Application payment 2',
+    'Application payment 2 received',
     'Fee Paid',
     'Visa Documents Issued',
     'Visa Submitted',
     'Visa Received',
     'Full fee',
-    'Application payment 3',
+    'Application payment 3 received',
     'Visa rejected',
     'Trc request',
     'Trc approved',
@@ -148,17 +149,17 @@ const StudentDetail = () => {
       'Under Review': 'status-warning',
       'Offer Requested': 'status-info',
       'Offer Received': 'status-success',
-      'Application payment 1': 'status-info',
+      'Application payment 1 received': 'status-info',
       'Application Moved': 'status-info',
       'Ministry Submitted': 'status-info',
       'Exam issued': 'status-info',
-      'Application payment 2': 'status-info',
+      'Application payment 2 received': 'status-info',
       'Fee Paid': 'status-success',
       'Visa Documents Issued': 'status-info',
       'Visa Submitted': 'status-info',
       'Visa Received': 'status-success',
       'Full fee': 'status-success',
-      'Application payment 3': 'status-success',
+      'Application payment 3 received': 'status-success',
       'Visa rejected': 'status-danger',
       'Trc request': 'status-info',
       'Trc approved': 'status-success',
@@ -191,7 +192,7 @@ const StudentDetail = () => {
     if (!student) return { text: 'Pending', class: 'status-pending' };
     const currentStatus = student.status || 'Under Review';
     
-    const applicationProcessStatuses = ['Application payment 1', 'Application Moved', 'Ministry Submitted', 'Exam issued', 'Application payment 2', 'Fee Paid'];
+    const applicationProcessStatuses = ['Application payment 1 received', 'Application Moved', 'Ministry Submitted', 'Exam issued', 'Application payment 2 received', 'Fee Paid'];
     
     // If status has progressed beyond offer letter stage, it's received
     if (!['Under Review', 'Offer Requested', 'Offer Received'].includes(currentStatus)) {
@@ -221,7 +222,7 @@ const StudentDetail = () => {
     
     // Visa-related statuses indicate partner has submitted visa document request
     // and admin has processed it
-    const visaProcessStatuses = ['Fee Paid', 'Visa Documents Issued', 'Visa Submitted', 'Visa Received', 'Full fee', 'Application payment 3'];
+    const visaProcessStatuses = ['Fee Paid', 'Visa Documents Issued', 'Visa Submitted', 'Visa Received', 'Full fee', 'Application payment 3 received'];
     
     // If status indicates visa document was processed, it's received
     if (visaProcessStatuses.includes(currentStatus)) {
@@ -350,6 +351,46 @@ const StudentDetail = () => {
       setError(err.response?.data?.message || 'Failed to upload offer letter');
     } finally {
       setUploadingOfferLetter(false);
+    }
+  };
+
+  const handleApplyOfferLetter = async () => {
+    if (!student || applyingOfferLetter) return;
+    const studentId = student.id || student._id;
+
+    try {
+      setApplyingOfferLetter(true);
+      const response = await api.get(`/students/${studentId}/apply-offer-letter`, {
+        responseType: 'blob',
+        timeout: 60000
+      });
+
+      const contentType = response.headers['content-type'] || '';
+      const contentDisposition = response.headers['content-disposition'] || '';
+      const fileNameMatch = contentDisposition.match(/filename\*?=['"]?(?:UTF-8'')?([^'";\n]+)/i);
+      const fileName = fileNameMatch ? decodeURIComponent(fileNameMatch[1].trim()) : 'OfferLetterRequest.docx';
+
+      const blob = new Blob([response.data], { type: contentType });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      if (student.status === 'Under Review') {
+        setStudent(prev => ({ ...prev, status: 'Offer Requested' }));
+      }
+    } catch (err) {
+      console.error('Apply offer letter error:', err);
+      const msg = err.response?.data instanceof Blob
+        ? 'Failed to download. Please try again.'
+        : (err.response?.data?.message || 'Failed to apply for offer letter');
+      alert(msg);
+    } finally {
+      setApplyingOfferLetter(false);
     }
   };
 
@@ -710,6 +751,37 @@ const StudentDetail = () => {
                   <span className="info-label">Application ID</span>
                   <span className="info-value">{student.id || student._id || 'N/A'}</span>
                 </div>
+              </div>
+
+              {/* Apply for Offer Letter Button - Above Send Offer Letter */}
+              <div className="apply-offer-letter-section">
+                <button
+                  type="button"
+                  className="btn-apply-offer-letter"
+                  onClick={handleApplyOfferLetter}
+                  disabled={applyingOfferLetter}
+                >
+                  {applyingOfferLetter ? (
+                    <>
+                      <span className="spinner-small"></span>
+                      {student.status === 'Under Review' ? 'Downloading Word & Updating...' : 'Downloading Excel...'}
+                    </>
+                  ) : (
+                    <>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                      </svg>
+                      Apply for Offer Letter
+                    </>
+                  )}
+                </button>
+                <p className="apply-offer-letter-hint">
+                  {student.status === 'Under Review'
+                    ? 'Downloads student info as Word file and changes status to Offer Requested'
+                    : 'Downloads student info and documents as Excel file (status unchanged)'}
+                </p>
               </div>
 
               {/* Offer Letter Upload Section (Admin Only) */}

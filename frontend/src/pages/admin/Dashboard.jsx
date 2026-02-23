@@ -148,16 +148,16 @@ const Dashboard = () => {
         return ['Under Review', 'Offer Requested', 'Offer Received'].includes(status);
       }).length;
       
-      // Application Process: Application payment 1, Application Moved, Ministry Submitted, Exam issued, Application payment 2, Fee Paid
+      // Application Process: Application payment 1 received, Application Moved, Ministry Submitted, Exam issued, Application payment 2 received, Fee Paid
       const applicationProcess = students.filter(s => {
         const status = s.status || 'Under Review';
-        return ['Application payment 1', 'Application Moved', 'Ministry Submitted', 'Exam issued', 'Application payment 2', 'Fee Paid'].includes(status);
+        return ['Application payment 1 received', 'Application Moved', 'Ministry Submitted', 'Exam issued', 'Application payment 2 received', 'Fee Paid'].includes(status);
       }).length;
       
-      // Visa Process: Visa Documents Issued, Visa Submitted, Full fee, Application payment 3
+      // Visa Process: Visa Documents Issued, Visa Submitted, Full fee, Application payment 3 received
       const visaProcess = students.filter(s => {
         const status = s.status || 'Under Review';
-        return ['Visa Documents Issued', 'Visa Submitted', 'Full fee', 'Application payment 3'].includes(status);
+        return ['Visa Documents Issued', 'Visa Submitted', 'Full fee', 'Application payment 3 received'].includes(status);
       }).length;
       
       // Visa Received: Visa Received
@@ -207,17 +207,17 @@ const Dashboard = () => {
             'Under Review': 'info',
             'Offer Requested': 'info',
             'Offer Received': 'success',
-            'Application payment 1': 'info',
+            'Application payment 1 received': 'info',
             'Application Moved': 'info',
             'Ministry Submitted': 'info',
             'Exam issued': 'info',
-            'Application payment 2': 'info',
+            'Application payment 2 received': 'info',
             'Fee Paid': 'success',
             'Visa Documents Issued': 'info',
             'Visa Submitted': 'info',
             'Visa Received': 'success',
             'Full fee': 'success',
-            'Application payment 3': 'success',
+            'Application payment 3 received': 'success',
             'Visa rejected': 'danger',
             'Trc request': 'info',
             'Trc approved': 'success',

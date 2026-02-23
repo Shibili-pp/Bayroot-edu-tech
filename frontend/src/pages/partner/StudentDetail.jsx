@@ -529,17 +529,17 @@ const StudentDetail = () => {
       'Under Review': 'status-info',
       'Offer Requested': 'status-info',
       'Offer Received': 'status-success',
-      'Application payment 1': 'status-info',
+      'Application payment 1 received': 'status-info',
       'Application Moved': 'status-info',
       'Ministry Submitted': 'status-info',
       'Exam issued': 'status-info',
-      'Application payment 2': 'status-info',
+      'Application payment 2 received': 'status-info',
       'Fee Paid': 'status-success',
       'Visa Documents Issued': 'status-info',
       'Visa Submitted': 'status-info',
       'Visa Received': 'status-success',
       'Full fee': 'status-success',
-      'Application payment 3': 'status-success',
+      'Application payment 3 received': 'status-success',
       'Visa rejected': 'status-danger',
       'Trc request': 'status-info',
       'Trc approved': 'status-success',
@@ -575,7 +575,7 @@ const StudentDetail = () => {
     const currentStatus = student.status || 'Under Review';
     
     // Application process statuses
-    const applicationProcessStatuses = ['Application payment 1', 'Application Moved', 'Ministry Submitted', 'Exam issued', 'Application payment 2', 'Fee Paid'];
+    const applicationProcessStatuses = ['Application payment 1 received', 'Application Moved', 'Ministry Submitted', 'Exam issued', 'Application payment 2 received', 'Fee Paid'];
     
     // Check if status indicates submission (admin has moved it forward)
     if (!['Under Review', 'Offer Requested', 'Offer Received'].includes(currentStatus)) {
@@ -638,7 +638,7 @@ const StudentDetail = () => {
     const currentStatus = student.status || 'Under Review';
     
     // Visa document process statuses
-    const visaProcessStatuses = ['Fee Paid', 'Visa Documents Issued', 'Visa Submitted', 'Visa Received', 'Full fee', 'Application payment 3'];
+    const visaProcessStatuses = ['Fee Paid', 'Visa Documents Issued', 'Visa Submitted', 'Visa Received', 'Full fee', 'Application payment 3 received'];
     
     // Check if status indicates submission (admin has moved it forward)
     if (visaProcessStatuses.includes(currentStatus)) {
@@ -672,7 +672,7 @@ const StudentDetail = () => {
     const currentStatus = student.status || 'Under Review';
     
     // Check if status indicates submission (admin has moved it forward)
-    const visaProcessStatuses = ['Fee Paid', 'Visa Documents Issued', 'Visa Submitted', 'Visa Received', 'Full fee', 'Application payment 3'];
+    const visaProcessStatuses = ['Fee Paid', 'Visa Documents Issued', 'Visa Submitted', 'Visa Received', 'Full fee', 'Application payment 3 received'];
     if (visaProcessStatuses.includes(currentStatus)) {
       return true;
     }

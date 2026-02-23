@@ -84,17 +84,17 @@ const Applications = () => {
     'Under Review',
     'Offer Requested',
     'Offer Received',
-    'Application payment 1',
+    'Application payment 1 received',
     'Application Moved',
     'Ministry Submitted',
     'Exam issued',
-    'Application payment 2',
+    'Application payment 2 received',
     'Fee Paid',
     'Visa Documents Issued',
     'Visa Submitted',
     'Visa Received',
     'Full fee',
-    'Application payment 3',
+    'Application payment 3 received',
     'Visa rejected',
     'Trc request',
     'Trc approved',
@@ -113,11 +113,11 @@ const Applications = () => {
           return false;
         }
       } else if (selectedStatus === 'application') {
-        if (!['Application payment 1', 'Application Moved', 'Ministry Submitted', 'Exam issued', 'Application payment 2', 'Fee Paid'].includes(appStatus)) {
+        if (!['Application payment 1 received', 'Application Moved', 'Ministry Submitted', 'Exam issued', 'Application payment 2 received', 'Fee Paid'].includes(appStatus)) {
           return false;
         }
       } else if (selectedStatus === 'visa') {
-        if (!['Visa Documents Issued', 'Visa Submitted', 'Full fee', 'Application payment 3'].includes(appStatus)) {
+        if (!['Visa Documents Issued', 'Visa Submitted', 'Full fee', 'Application payment 3 received'].includes(appStatus)) {
           return false;
         }
       } else if (selectedStatus === 'trc') {
@@ -150,17 +150,17 @@ const Applications = () => {
       'Under Review': 'status-info',
       'Offer Requested': 'status-info',
       'Offer Received': 'status-success',
-      'Application payment 1': 'status-info',
+      'Application payment 1 received': 'status-info',
       'Application Moved': 'status-info',
       'Ministry Submitted': 'status-info',
       'Exam issued': 'status-info',
-      'Application payment 2': 'status-info',
+      'Application payment 2 received': 'status-info',
       'Fee Paid': 'status-success',
       'Visa Documents Issued': 'status-info',
       'Visa Submitted': 'status-info',
       'Visa Received': 'status-success',
       'Full fee': 'status-success',
-      'Application payment 3': 'status-success',
+      'Application payment 3 received': 'status-success',
       'Visa rejected': 'status-danger',
       'Trc request': 'status-info',
       'Trc approved': 'status-success',
@@ -273,18 +273,18 @@ const Applications = () => {
                 <option value="Offer Received">Offer Received</option>
               </optgroup>
               <optgroup label="Application Process">
-                <option value="Application payment 1">Application payment 1</option>
+                <option value="Application payment 1 received">Application payment 1 received</option>
                 <option value="Application Moved">Application Moved</option>
                 <option value="Ministry Submitted">Ministry Submitted</option>
                 <option value="Exam issued">Exam issued</option>
-                <option value="Application payment 2">Application payment 2</option>
+                <option value="Application payment 2 received">Application payment 2 received</option>
                 <option value="Fee Paid">Fee Paid</option>
               </optgroup>
               <optgroup label="Visa Process">
                 <option value="Visa Documents Issued">Visa Documents Issued</option>
                 <option value="Visa Submitted">Visa Submitted</option>
                 <option value="Full fee">Full fee</option>
-                <option value="Application payment 3">Application payment 3</option>
+                <option value="Application payment 3 received">Application payment 3 received</option>
                 <option value="Visa Received">Visa Received</option>
                 <option value="Visa rejected">Visa rejected</option>
               </optgroup>

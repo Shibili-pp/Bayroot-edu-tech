@@ -100,16 +100,16 @@ const Dashboard = () => {
             return ['Under Review', 'Offer Requested', 'Offer Received'].includes(status);
           }).length;
           
-          // Application Process: Application payment 1, Application Moved, Ministry Submitted, Exam issued, Application payment 2, Fee Paid
+          // Application Process: Application payment 1 received, Application Moved, Ministry Submitted, Exam issued, Application payment 2 received, Fee Paid
           const applicationProcess = students.filter(s => {
             const status = s.status || 'Under Review';
-            return ['Application payment 1', 'Application Moved', 'Ministry Submitted', 'Exam issued', 'Application payment 2', 'Fee Paid'].includes(status);
+            return ['Application payment 1 received', 'Application Moved', 'Ministry Submitted', 'Exam issued', 'Application payment 2 received', 'Fee Paid'].includes(status);
           }).length;
           
-          // Visa Process: Visa Documents Issued, Visa Submitted, Full fee, Application payment 3
+          // Visa Process: Visa Documents Issued, Visa Submitted, Full fee, Application payment 3 received
           const visaProcess = students.filter(s => {
             const status = s.status || 'Under Review';
-            return ['Visa Documents Issued', 'Visa Submitted', 'Full fee', 'Application payment 3'].includes(status);
+            return ['Visa Documents Issued', 'Visa Submitted', 'Full fee', 'Application payment 3 received'].includes(status);
           }).length;
           
           // Visa Received: Visa Received
@@ -503,11 +503,11 @@ const Dashboard = () => {
         }).length;
         const applicationProcess = students.filter(s => {
           const status = s.status || 'Under Review';
-          return ['Application payment 1', 'Application Moved', 'Ministry Submitted', 'Exam issued', 'Application payment 2', 'Fee Paid'].includes(status);
+          return ['Application payment 1 received', 'Application Moved', 'Ministry Submitted', 'Exam issued', 'Application payment 2 received', 'Fee Paid'].includes(status);
         }).length;
         const visaProcess = students.filter(s => {
           const status = s.status || 'Under Review';
-          return ['Visa Documents Issued', 'Visa Submitted', 'Full fee', 'Application payment 3'].includes(status);
+          return ['Visa Documents Issued', 'Visa Submitted', 'Full fee', 'Application payment 3 received'].includes(status);
         }).length;
         const visaReceived = students.filter(s => {
           const status = s.status || 'Under Review';

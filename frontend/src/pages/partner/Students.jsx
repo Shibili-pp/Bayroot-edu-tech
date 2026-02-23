@@ -91,11 +91,11 @@ const Students = () => {
           return false;
         }
       } else if (selectedStatus === 'application') {
-        if (!['Application payment 1', 'Application Moved', 'Ministry Submitted', 'Exam issued', 'Application payment 2', 'Fee Paid'].includes(studentStatus)) {
+        if (!['Application payment 1 received', 'Application Moved', 'Ministry Submitted', 'Exam issued', 'Application payment 2 received', 'Fee Paid'].includes(studentStatus)) {
           return false;
         }
       } else if (selectedStatus === 'visa') {
-        if (!['Visa Documents Issued', 'Visa Submitted', 'Full fee', 'Application payment 3'].includes(studentStatus)) {
+        if (!['Visa Documents Issued', 'Visa Submitted', 'Full fee', 'Application payment 3 received'].includes(studentStatus)) {
           return false;
         }
       } else if (selectedStatus === 'trc') {
@@ -123,23 +123,45 @@ const Students = () => {
     'Under Review',
     'Offer Requested',
     'Offer Received',
-    'Application payment 1',
+    'Application payment 1 received',
     'Application Moved',
     'Ministry Submitted',
     'Exam issued',
-    'Application payment 2',
+    'Application payment 2 received',
     'Fee Paid',
     'Visa Documents Issued',
     'Visa Submitted',
     'Visa Received',
     'Full fee',
-    'Application payment 3',
+    'Application payment 3 received',
     'Visa rejected',
     'Trc request',
     'Trc approved',
     'Trc rejected',
     'Student Dropped'
   ];
+
+  // Status flow: maps each status to the next pending status in the process
+  const STATUS_FLOW = {
+    'Under Review': 'Offer Requested',
+    'Offer Requested': 'Offer Received',
+    'Offer Received': 'Application payment 1 received',
+    'Application payment 1 received': 'Application Moved',
+    'Application Moved': 'Ministry Submitted',
+    'Ministry Submitted': 'Exam issued',
+    'Exam issued': 'Application payment 2 received',
+    'Application payment 2 received': 'Fee Paid',
+    'Fee Paid': 'Visa Documents Issued',
+    'Visa Documents Issued': 'Visa Submitted',
+    'Visa Submitted': 'Full fee',
+    'Full fee': 'Application payment 3 received',
+    'Application payment 3 received': 'Visa Received'
+    // Terminal statuses (no next): Visa Received, Visa rejected, Trc request, Trc approved, Trc rejected, Student Dropped
+  };
+
+  const getNextPendingStatus = (currentStatus) => {
+    return STATUS_FLOW[currentStatus] || null;
+  };
 
   const getStatusBadge = (student) => {
     const currentStatus = student.status || 'Under Review';
@@ -149,17 +171,17 @@ const Students = () => {
       'Under Review': 'status-info',
       'Offer Requested': 'status-info',
       'Offer Received': 'status-success',
-      'Application payment 1': 'status-info',
+      'Application payment 1 received': 'status-info',
       'Application Moved': 'status-info',
       'Ministry Submitted': 'status-info',
       'Exam issued': 'status-info',
-      'Application payment 2': 'status-info',
+      'Application payment 2 received': 'status-info',
       'Fee Paid': 'status-success',
       'Visa Documents Issued': 'status-info',
       'Visa Submitted': 'status-info',
       'Visa Received': 'status-success',
       'Full fee': 'status-success',
-      'Application payment 3': 'status-success',
+      'Application payment 3 received': 'status-success',
       'Visa rejected': 'status-danger',
       'Trc request': 'status-info',
       'Trc approved': 'status-success',
@@ -274,18 +296,18 @@ const Students = () => {
                 <option value="Offer Received">Offer Received</option>
               </optgroup>
               <optgroup label="Application Process">
-                <option value="Application payment 1">Application payment 1</option>
+                <option value="Application payment 1 received">Application payment 1 received</option>
                 <option value="Application Moved">Application Moved</option>
                 <option value="Ministry Submitted">Ministry Submitted</option>
                 <option value="Exam issued">Exam issued</option>
-                <option value="Application payment 2">Application payment 2</option>
+                <option value="Application payment 2 received">Application payment 2 received</option>
                 <option value="Fee Paid">Fee Paid</option>
               </optgroup>
               <optgroup label="Visa Process">
                 <option value="Visa Documents Issued">Visa Documents Issued</option>
                 <option value="Visa Submitted">Visa Submitted</option>
                 <option value="Full fee">Full fee</option>
-                <option value="Application payment 3">Application payment 3</option>
+                <option value="Application payment 3 received">Application payment 3 received</option>
                 <option value="Visa Received">Visa Received</option>
                 <option value="Visa rejected">Visa rejected</option>
               </optgroup>
@@ -350,7 +372,8 @@ const Students = () => {
                   <th>Course</th>
                   <th>Email</th>
                   <th>Documents</th>
-                  <th>Status</th>
+                  <th>Current Status</th>
+                  <th>Next Pending Status</th>
                   <th>Created Date</th>
                   <th>Actions</th>
                 </tr>
@@ -387,6 +410,15 @@ const Students = () => {
                         <span className={`status-badge ${status.class}`}>
                           {status.text}
                         </span>
+                      </td>
+                      <td>
+                        {getNextPendingStatus(student.status || 'Under Review') ? (
+                          <span className="status-badge status-pending next-pending-status" title="Next pending step">
+                            {getNextPendingStatus(student.status || 'Under Review')}
+                          </span>
+                        ) : (
+                          <span className="status-cell-empty">—</span>
+                        )}
                       </td>
                       <td>{formatDate(student.createdAt)}</td>
                       <td>

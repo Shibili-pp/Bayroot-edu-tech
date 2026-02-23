@@ -278,17 +278,17 @@ const updateStudent = async (req, res) => {
         'Under Review',
         'Offer Requested',
         'Offer Received',
-        'Application payment 1',
+        'Application payment 1 received',
         'Application Moved',
         'Ministry Submitted',
         'Exam issued',
-        'Application payment 2',
+        'Application payment 2 received',
         'Fee Paid',
         'Visa Documents Issued',
         'Visa Submitted',
         'Visa Received',
         'Full fee',
-        'Application payment 3',
+        'Application payment 3 received',
         'Visa rejected',
         'Trc request',
         'Trc approved',
@@ -549,6 +549,12 @@ const uploadOfferLetter = async (req, res) => {
       }
     };
 
+    // Auto-update status: when admin uploads offer letter and status is "Offer Requested", change to "Offer Received"
+    if (student.status === 'Offer Requested') {
+      student.status = 'Offer Received';
+      student.statusUpdatedAt = new Date();
+    }
+
     await student.save();
 
     // Log audit
@@ -615,6 +621,119 @@ const deleteStudent = async (req, res) => {
   }
 };
 
+/**
+ * Apply for Offer Letter - Admin only
+ * When status is "Under Review": download Word with student info + change status to "Offer Requested"
+ * When status is NOT "Under Review": download Excel with student info/documents (no status change)
+ */
+const applyOfferLetter = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const student = await Student.findById(id)
+      .populate('universityId', 'name country')
+      .populate('courseId', 'name')
+      .populate('intakeId', 'name')
+      .populate('partnerId', 'companyName email');
+
+    if (!student || student.isDeleted) {
+      return sendError(res, 'Student not found', 404);
+    }
+
+    const s = student.toObject();
+    const data = {
+      fullName: s.fullName,
+      email: decrypt(s.email),
+      phone: decrypt(s.phone),
+      aadharNumber: decrypt(s.aadharNumber),
+      passportNumber: s.passportNumber ? decrypt(s.passportNumber) : 'N/A',
+      nationality: s.nationality || 'N/A',
+      university: s.universityId?.name || 'N/A',
+      country: s.universityId?.country || 'N/A',
+      course: s.courseId?.name || 'N/A',
+      intake: s.intakeId?.name || 'N/A',
+      intakeYear: s.intakeYear || 'N/A',
+      partnerCompany: s.partnerId?.companyName || 'N/A',
+      partnerEmail: s.partnerId?.email || 'N/A',
+      applicationId: s._id?.toString() || 'N/A',
+      createdAt: s.createdAt ? new Date(s.createdAt).toLocaleDateString() : 'N/A'
+    };
+
+    if (student.status === 'Under Review') {
+      // Generate Word document and update status to Offer Requested
+      const { Document, Packer, Paragraph, TextRun } = require('docx');
+
+      const label = (k) => k.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).trim();
+
+      const doc = new Document({
+        sections: [{
+          properties: {},
+          children: [
+            new Paragraph({ children: [new TextRun({ text: 'Student Application - Offer Letter Request', bold: true })] }),
+            new Paragraph({ text: '' }),
+            ...Object.entries(data).map(([key, val]) =>
+              new Paragraph({
+                children: [
+                  new TextRun({ text: `${label(key)}: `, bold: true }),
+                  new TextRun({ text: String(val ?? 'N/A') })
+                ]
+              })
+            )
+          ]
+        }]
+      });
+
+      const buffer = await Packer.toBuffer(doc);
+      student.status = 'Offer Requested';
+      student.statusUpdatedAt = new Date();
+      await student.save();
+
+      const fileName = `OfferLetterRequest_${(data.fullName || 'Student').replace(/\s+/g, '_')}_${Date.now()}.docx`;
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+      res.send(buffer);
+    } else {
+      // Generate Excel with student info and documents
+      const ExcelJS = require('exceljs');
+      const workbook = new ExcelJS.Workbook();
+      const ws = workbook.addWorksheet('Student Info');
+
+      ws.columns = [
+        { header: 'Field', width: 25 },
+        { header: 'Value', width: 40 }
+      ];
+      ws.addRow(['Field', 'Value']);
+      ws.getRow(1).font = { bold: true };
+
+      Object.entries(data).forEach(([key, val]) => {
+        ws.addRow([key.replace(/([A-Z])/g, ' $1').trim(), val || 'N/A']);
+      });
+
+      if (s.documents && s.documents.length > 0) {
+        ws.addRow([]);
+        ws.addRow(['Documents', '']);
+        ws.addRow(['Document Name', 'Type', 'Uploaded']);
+        s.documents.forEach(doc => {
+          ws.addRow([
+            doc.originalName || doc.filename || 'Document',
+            doc.fileType || 'N/A',
+            doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : 'N/A'
+          ]);
+        });
+      }
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const fileName = `StudentExport_${(data.fullName || 'Student').replace(/\s+/g, '_')}_${Date.now()}.xlsx`;
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+      res.send(buffer);
+    }
+  } catch (error) {
+    console.error('Apply offer letter error:', error);
+    return sendError(res, error.message || 'Failed to apply for offer letter', 500);
+  }
+};
+
 module.exports = {
   createStudent,
   getAllStudents,
@@ -622,6 +741,7 @@ module.exports = {
   updateStudent,
   uploadDocuments,
   uploadOfferLetter,
-  deleteStudent
+  deleteStudent,
+  applyOfferLetter
 };
 

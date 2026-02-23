@@ -1,5 +1,6 @@
 const File = require('../models/File.model');
 const Student = require('../models/Student.model');
+const Comment = require('../models/Comment.model');
 const { sendSuccess, sendError } = require('../utils/response.util');
 const { logAudit, getClientIp } = require('../utils/audit.util');
 const { uploadToS3, deleteFromS3, fileExistsInS3, getPresignedUrl, getFileFromS3 } = require('../services/s3.service');
@@ -277,8 +278,7 @@ const getDocumentUrl = async (req, res) => {
     }
 
     // For PARTNER role, verify they have access to this document
-    // (i.e., it belongs to a student they created)
-    // Check both documents array and offerLetter field
+    // Check: Student documents, offerLetter, or Comment documents for their students
     if (role === 'PARTNER') {
       const student = await Student.findOne({
         $or: [
@@ -290,7 +290,14 @@ const getDocumentUrl = async (req, res) => {
       });
 
       if (!student) {
-        return sendError(res, 'Access denied. You can only access documents from your students.', 403);
+        const partnerStudentIds = await Student.find({ partnerId: userId, isDeleted: false }).distinct('_id');
+        const commentWithDoc = await Comment.findOne({
+          'documents.s3Key': decodedS3Key,
+          studentId: { $in: partnerStudentIds }
+        });
+        if (!commentWithDoc) {
+          return sendError(res, 'Access denied. You can only access documents from your students.', 403);
+        }
       }
     }
 
@@ -332,7 +339,7 @@ const downloadDocument = async (req, res) => {
     }
 
     // For PARTNER role, verify they have access to this document
-    // Check both documents array and offerLetter field
+    // Check: Student documents, offerLetter, or Comment documents for their students
     if (role === 'PARTNER') {
       const student = await Student.findOne({
         $or: [
@@ -344,7 +351,14 @@ const downloadDocument = async (req, res) => {
       });
 
       if (!student) {
-        return sendError(res, 'Access denied. You can only access documents from your students.', 403);
+        const partnerStudentIds = await Student.find({ partnerId: userId, isDeleted: false }).distinct('_id');
+        const commentWithDoc = await Comment.findOne({
+          'documents.s3Key': decodedS3Key,
+          studentId: { $in: partnerStudentIds }
+        });
+        if (!commentWithDoc) {
+          return sendError(res, 'Access denied. You can only access documents from your students.', 403);
+        }
       }
     }
 

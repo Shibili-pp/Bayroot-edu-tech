@@ -12,6 +12,7 @@ const CommentsSection = ({ studentId, userRole }) => {
   const [submitting, setSubmitting] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState({});
   const [filesToUpload, setFilesToUpload] = useState([]);
+  const [downloadingDocId, setDownloadingDocId] = useState(null);
   const fileInputRef = useRef(null);
   const commentsEndRef = useRef(null);
 
@@ -257,8 +258,12 @@ const CommentsSection = ({ studentId, userRole }) => {
     return comment.role === 'ADMIN' ? 'Bayroot' : 'Partner';
   };
 
+  const getS3KeyFromDoc = (doc) => {
+    return doc.s3Key || (doc.s3Url ? doc.s3Url.split('.amazonaws.com/')[1]?.split('?')[0] : null);
+  };
+
   const handleDocumentClick = async (doc) => {
-    const s3Key = doc.s3Key || (doc.s3Url ? doc.s3Url.split('.amazonaws.com/')[1]?.split('?')[0] : null);
+    const s3Key = getS3KeyFromDoc(doc);
     if (!s3Key) {
       alert('Unable to access document: missing file information');
       return;
@@ -273,6 +278,53 @@ const CommentsSection = ({ studentId, userRole }) => {
       }
     } catch (err) {
       alert('Failed to open document');
+    }
+  };
+
+  const handleDocumentDownload = async (doc) => {
+    const s3Key = getS3KeyFromDoc(doc);
+    if (!s3Key) {
+      alert('Unable to download document: missing file information');
+      return;
+    }
+
+    const docId = doc.fileId || doc._id;
+    setDownloadingDocId(docId);
+
+    try {
+      const fileName = doc.originalName || doc.filename || 'document';
+      const response = await api.get(`/files/download`, {
+        params: { s3Key, filename: fileName },
+        responseType: 'blob'
+      });
+
+      const blob = response.data;
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+      }, 100);
+    } catch (err) {
+      if (err.response?.data instanceof Blob) {
+        const text = await err.response.data.text();
+        try {
+          const errorData = JSON.parse(text);
+          alert(errorData.message || 'Failed to download document');
+        } catch {
+          alert('Failed to download document. Please try again.');
+        }
+      } else {
+        alert(err.response?.data?.message || 'Failed to download document. Please try again.');
+      }
+    } finally {
+      setDownloadingDocId(null);
     }
   };
 
@@ -328,12 +380,29 @@ const CommentsSection = ({ studentId, userRole }) => {
                   {comment.documents.map((doc, idx) => (
                     <div key={doc.fileId || idx} className="comment-document-item">
                       <span className="document-name">{doc.originalName || doc.filename}</span>
-                      <button
-                        className="document-view-btn-small"
-                        onClick={() => handleDocumentClick(doc)}
-                      >
-                        View
-                      </button>
+                      <div className="document-action-btns">
+                        <button
+                          className="document-view-btn-small"
+                          onClick={() => handleDocumentClick(doc)}
+                        >
+                          View
+                        </button>
+                        <button
+                          className="document-download-btn-small"
+                          onClick={() => handleDocumentDownload(doc)}
+                          disabled={downloadingDocId === (doc.fileId || doc._id)}
+                          title="Download document"
+                        >
+                          {downloadingDocId === (doc.fileId || doc._id) ? (
+                            <>
+                              <span className="spinner-small"></span>
+                              Downloading...
+                            </>
+                          ) : (
+                            'Download'
+                          )}
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -434,12 +503,29 @@ const CommentsSection = ({ studentId, userRole }) => {
                       {reply.documents.map((doc, idx) => (
                         <div key={doc.fileId || idx} className="comment-document-item">
                           <span className="document-name">{doc.originalName || doc.filename}</span>
-                          <button
-                            className="document-view-btn-small"
-                            onClick={() => handleDocumentClick(doc)}
-                          >
-                            View
-                          </button>
+                          <div className="document-action-btns">
+                            <button
+                              className="document-view-btn-small"
+                              onClick={() => handleDocumentClick(doc)}
+                            >
+                              View
+                            </button>
+                            <button
+                              className="document-download-btn-small"
+                              onClick={() => handleDocumentDownload(doc)}
+                              disabled={downloadingDocId === (doc.fileId || doc._id)}
+                              title="Download document"
+                            >
+                              {downloadingDocId === (doc.fileId || doc._id) ? (
+                                <>
+                                  <span className="spinner-small"></span>
+                                  Downloading...
+                                </>
+                              ) : (
+                                'Download'
+                              )}
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>

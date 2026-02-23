@@ -25,6 +25,9 @@ router.post('/', authorize('PARTNER'), checkPartnerApproved, studentController.c
 // Partner and Admin can get all students (filtered by role) - with pagination
 router.get('/', parsePagination, authorize('PARTNER', 'ADMIN'), checkApprovalIfPartner, studentController.getAllStudents);
 
+// Admin only - Apply for Offer Letter (download Word/Excel + status update when Under Review)
+router.get('/:id/apply-offer-letter', checkAdmin, studentController.applyOfferLetter);
+
 // Partner and Admin can get single student
 router.get('/:id', authorize('PARTNER', 'ADMIN'), checkApprovalIfPartner, studentController.getStudent);
 

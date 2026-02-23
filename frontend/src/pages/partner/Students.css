@@ -412,6 +412,17 @@
   color: #991b1b;
 }
 
+.next-pending-status {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.625rem;
+  border: 1px dashed rgba(153, 27, 27, 0.4);
+}
+
+.status-cell-empty {
+  color: #9ca3af;
+  font-size: 0.9375rem;
+}
+
 /* Empty State */
 .empty-state {
   text-align: center;
