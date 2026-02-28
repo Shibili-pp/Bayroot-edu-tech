@@ -1,5 +1,6 @@
 const File = require('../models/File.model');
 const Student = require('../models/Student.model');
+const Announcement = require('../models/Announcement.model');
 const Comment = require('../models/Comment.model');
 const { sendSuccess, sendError } = require('../utils/response.util');
 const { logAudit, getClientIp } = require('../utils/audit.util');
@@ -296,7 +297,15 @@ const getDocumentUrl = async (req, res) => {
           studentId: { $in: partnerStudentIds }
         });
         if (!commentWithDoc) {
-          return sendError(res, 'Access denied. You can only access documents from your students.', 403);
+          // Check if s3Key is an announcement image visible to partner
+          const announcementWithImage = await Announcement.findOne({
+            'image.s3Key': decodedS3Key,
+            isActive: true,
+            hiddenFromPartners: { $nin: [userId] }
+          });
+          if (!announcementWithImage) {
+            return sendError(res, 'Access denied. You can only access documents from your students.', 403);
+          }
         }
       }
     }
@@ -357,7 +366,14 @@ const downloadDocument = async (req, res) => {
           studentId: { $in: partnerStudentIds }
         });
         if (!commentWithDoc) {
-          return sendError(res, 'Access denied. You can only access documents from your students.', 403);
+          const announcementWithImage = await Announcement.findOne({
+            'image.s3Key': decodedS3Key,
+            isActive: true,
+            hiddenFromPartners: { $nin: [userId] }
+          });
+          if (!announcementWithImage) {
+            return sendError(res, 'Access denied. You can only access documents from your students.', 403);
+          }
         }
       }
     }

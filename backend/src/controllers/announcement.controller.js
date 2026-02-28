@@ -1,6 +1,9 @@
 const Announcement = require('../models/Announcement.model');
 const { sendSuccess, sendError } = require('../utils/response.util');
 const { logAudit, getClientIp } = require('../utils/audit.util');
+const { uploadToS3 } = require('../services/s3.service');
+const { getPresignedUrl } = require('../services/s3.service');
+const { getFileType } = require('../middlewares/upload.middleware');
 
 /**
  * Create new announcement
@@ -8,7 +11,14 @@ const { logAudit, getClientIp } = require('../utils/audit.util');
  */
 const createAnnouncement = async (req, res) => {
   try {
-    const { content, category, hiddenFromPartners } = req.body;
+    let { content, category, hiddenFromPartners } = req.body;
+    if (typeof hiddenFromPartners === 'string') {
+      try {
+        hiddenFromPartners = JSON.parse(hiddenFromPartners);
+      } catch {
+        hiddenFromPartners = [];
+      }
+    }
     const userId = req.user.userId || req.user.id;
     const role = req.user.role;
 
@@ -26,12 +36,37 @@ const createAnnouncement = async (req, res) => {
       return sendError(res, 'Valid category is required (reminder, urgent, or critical)', 400);
     }
 
+    // Handle optional image upload
+    let imageData = null;
+    if (req.file) {
+      const fileType = getFileType(req.file.mimetype);
+      if (!fileType || fileType !== 'image') {
+        return sendError(res, 'Invalid image type. Only JPG, PNG, JPEG, or WebP are allowed.', 400);
+      }
+      const maxSize = 5 * 1024 * 1024; // 5MB for announcement images
+      if (req.file.size > maxSize) {
+        return sendError(res, 'Image exceeds maximum size of 5MB', 400);
+      }
+      const { s3Key, s3Url, fileName } = await uploadToS3(
+        req.file.buffer,
+        req.file.originalname,
+        'image',
+        req.file.mimetype
+      );
+      imageData = {
+        s3Key,
+        s3Url,
+        originalName: req.file.originalname
+      };
+    }
+
     // Create announcement
     const announcement = new Announcement({
       content: content.trim(),
       category,
       hiddenFromPartners: hiddenFromPartners || [],
-      createdBy: userId
+      createdBy: userId,
+      ...(imageData && { image: imageData })
     });
 
     await announcement.save();
@@ -93,6 +128,17 @@ const getAllAnnouncements = async (req, res) => {
       .limit(parseInt(limit))
       .lean();
 
+    // Add presigned image URL for announcements that have images
+    for (const ann of announcements) {
+      if (ann.image?.s3Key) {
+        try {
+          ann.image.imageUrl = await getPresignedUrl(ann.image.s3Key, 3600);
+        } catch (err) {
+          console.error('Failed to get presigned URL for announcement image:', err);
+        }
+      }
+    }
+
     const total = await Announcement.countDocuments(query);
 
     return sendSuccess(res, {
@@ -143,6 +189,17 @@ const getVisibleAnnouncements = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(parseInt(limit))
       .lean();
+
+    // Add presigned image URL for announcements that have images
+    for (const ann of announcements) {
+      if (ann.image?.s3Key) {
+        try {
+          ann.image.imageUrl = await getPresignedUrl(ann.image.s3Key, 3600);
+        } catch (err) {
+          console.error('Failed to get presigned URL for announcement image:', err);
+        }
+      }
+    }
 
     console.log(`Found ${announcements.length} visible announcements for partner ${userId}`);
     

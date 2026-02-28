@@ -1,11 +1,11 @@
-/* Partner Notifications Popup Overlay */
+/* Partner Notifications Popup Overlay - Rendered via portal to document.body */
 .partner-notifications-popup-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 1000;
+  z-index: 9999;
   pointer-events: none;
 }
 
@@ -106,6 +106,30 @@
 .partner-notifications-section {
   padding: 0.75rem 1rem;
   border-bottom: 1px solid #f3f4f6;
+}
+
+/* Critical Section - Prominent at top of popup */
+.partner-notifications-section--critical {
+  background: linear-gradient(180deg, #fef2f2 0%, #ffffff 100%);
+  border-bottom: 2px solid #fecaca;
+  padding: 1rem;
+}
+
+.partner-notifications-section-header--critical {
+  margin-bottom: 0.625rem;
+}
+
+.partner-notifications-section-header--critical h4 {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.partner-notifications-section-header--critical .partner-notifications-section-icon {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
 }
 
 .partner-notifications-section:last-of-type {
@@ -209,6 +233,61 @@
   color: #ef4444;
 }
 
+/* Critical Announcement - Attractive Prominent UI */
+.partner-notification-item--critical {
+  background: linear-gradient(135deg, #fef2f2 0%, #fff5f5 100%);
+  border: 2px solid #fecaca;
+  border-left: 4px solid #ef4444;
+  padding: 0.875rem;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.12);
+}
+
+.partner-notification-item--critical:hover {
+  background: linear-gradient(135deg, #fee2e2 0%, #fef2f2 100%);
+  border-color: #fca5a5;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.18);
+}
+
+.partner-notification-critical-banner {
+  display: inline-block;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+}
+
+.partner-notification-badge--critical {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+  color: white !important;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+  animation: critical-pulse 2s ease-in-out infinite;
+}
+
+@keyframes critical-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
+}
+
+.partner-notification-category--critical {
+  color: #dc2626 !important;
+  font-weight: 700;
+}
+
+.partner-notification-title--critical {
+  color: #991b1b !important;
+  font-weight: 600;
+}
+
+.partner-notification-message--critical {
+  color: #7f1d1d !important;
+  -webkit-line-clamp: 3;
+}
+
 .partner-notification-content {
   flex: 1;
   min-width: 0;
@@ -260,6 +339,30 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.partner-notification-announcement-image {
+  margin-top: 0.5rem;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+}
+
+.partner-notification-announcement-image img {
+  display: block;
+  max-width: 100%;
+  max-height: 120px;
+  object-fit: contain;
+}
+
+.partner-notification-announcement-image--clickable {
+  cursor: pointer;
+  transition: opacity 0.2s, box-shadow 0.2s;
+}
+
+.partner-notification-announcement-image--clickable:hover {
+  opacity: 0.9;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .partner-notification-status {
@@ -317,13 +420,74 @@
 }
 
 /* Responsive */
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .partner-notifications-popup {
     right: 0.75rem;
     left: 0.75rem;
     width: auto;
     max-width: none;
-    top: 70px;
+    top: 65px;
+    max-height: calc(100vh - 80px);
+  }
+
+  .partner-notification-item--critical {
+    padding: 0.75rem;
+  }
+
+  .partner-notification-critical-banner {
+    font-size: 0.5625rem;
+    letter-spacing: 0.1em;
+    padding: 0.15rem 0.4rem;
+  }
+
+  .partner-notification-message--critical {
+    -webkit-line-clamp: 2;
+  }
+
+  .partner-notification-announcement-image img {
+    max-height: 100px;
+  }
+}
+
+@media (max-width: 480px) {
+  .partner-notifications-popup {
+    right: 0.5rem;
+    left: 0.5rem;
+    top: 60px;
+    border-radius: 10px;
+  }
+
+  .partner-notifications-popup-header {
+    padding: 0.875rem 1rem;
+  }
+
+  .partner-notifications-section {
+    padding: 0.625rem 0.875rem;
+  }
+
+  .partner-notification-item {
+    padding: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .partner-notification-item--critical {
+    padding: 0.625rem;
+  }
+
+  .partner-notification-badge,
+  .partner-notification-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 0.875rem;
+  }
+
+  .partner-notification-title,
+  .partner-notification-message {
+    font-size: 0.75rem;
+  }
+
+  .partner-notification-category {
+    font-size: 0.75rem;
   }
 }
 

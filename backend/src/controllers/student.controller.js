@@ -2,10 +2,12 @@ const Student = require('../models/Student.model');
 const Course = require('../models/Course.model');
 const University = require('../models/University.model');
 const StatusTimeline = require('../models/StatusTimeline.model');
+const Admin = require('../models/Admin.model');
 const { sendSuccess, sendError } = require('../utils/response.util');
 const { formatStudentResponse } = require('../utils/studentResponse.util');
 const { logAudit, getClientIp } = require('../utils/audit.util');
 const { decrypt } = require('../utils/encryption.util');
+const { sendNewApplicationNotificationEmail } = require('../utils/email.util');
 const { v4: uuidv4 } = require('uuid');
 
 // Create Student
@@ -143,6 +145,23 @@ const createStudent = async (req, res) => {
       ipAddress: getClientIp(req),
       userAgent: req.get('user-agent')
     });
+
+    // Send email notification to all admins when partner submits new application
+    try {
+      const admins = await Admin.find({}).select('email');
+      const adminEmails = admins.map(a => a.email).filter(Boolean);
+      if (adminEmails.length > 0) {
+        await sendNewApplicationNotificationEmail(adminEmails, {
+          studentName: student.fullName,
+          partnerName: student.partnerId?.companyName || 'N/A',
+          universityName: student.universityId?.name || 'N/A',
+          courseName: student.courseId?.name || 'N/A'
+        });
+      }
+    } catch (emailError) {
+      console.error('Failed to send new application notification email:', emailError);
+      // Don't fail student creation if email fails
+    }
 
     const formattedStudent = formatStudentResponse(student, role);
     return sendSuccess(res, { student: formattedStudent }, 'Student created successfully', 201);

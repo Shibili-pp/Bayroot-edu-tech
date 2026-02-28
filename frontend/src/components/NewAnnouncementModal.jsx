@@ -11,6 +11,8 @@ const NewAnnouncementModal = ({ isOpen, onClose, onSuccess }) => {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [showPartners, setShowPartners] = useState(false);
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -42,6 +44,31 @@ const NewAnnouncementModal = ({ isOpen, onClose, onSuccess }) => {
     });
   };
 
+  const handleImageSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        setError('Please select a valid image (JPG, PNG, or WebP)');
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Image must be smaller than 5MB');
+        return;
+      }
+      setError('');
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setImagePreview(reader.result);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -54,10 +81,16 @@ const NewAnnouncementModal = ({ isOpen, onClose, onSuccess }) => {
     setSubmitting(true);
 
     try {
-      const response = await api.post('/announcements', {
-        content: content.trim(),
-        category,
-        hiddenFromPartners
+      const formData = new FormData();
+      formData.append('content', content.trim());
+      formData.append('category', category);
+      formData.append('hiddenFromPartners', JSON.stringify(hiddenFromPartners));
+      if (imageFile) {
+        formData.append('image', imageFile);
+      }
+
+      const response = await api.post('/announcements', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
 
       if (response.data.success) {
@@ -65,6 +98,8 @@ const NewAnnouncementModal = ({ isOpen, onClose, onSuccess }) => {
         setCategory('reminder');
         setHiddenFromPartners([]);
         setShowPartners(false);
+        setImageFile(null);
+        setImagePreview(null);
         onSuccess && onSuccess(response.data.data.announcement);
         onClose();
       } else {
@@ -83,6 +118,8 @@ const NewAnnouncementModal = ({ isOpen, onClose, onSuccess }) => {
       setCategory('reminder');
       setHiddenFromPartners([]);
       setShowPartners(false);
+      setImageFile(null);
+      setImagePreview(null);
       setError('');
       onClose();
     }
@@ -168,6 +205,45 @@ const NewAnnouncementModal = ({ isOpen, onClose, onSuccess }) => {
                   )}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Optional Image */}
+          <div className="form-section">
+            <label className="section-label">Add Image (optional)</label>
+            <div className="announcement-image-upload">
+              <input
+                type="file"
+                id="announcement-image"
+                accept="image/jpeg,image/jpg,image/png,image/webp"
+                onChange={handleImageSelect}
+                style={{ display: 'none' }}
+                disabled={submitting}
+              />
+              {!imagePreview ? (
+                <label htmlFor="announcement-image" className="announcement-image-dropzone">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                    <path d="M21 15l-5-5L5 21"/>
+                  </svg>
+                  <span>Click to add image</span>
+                  <span className="image-hint">JPG, PNG, WebP (max 5MB)</span>
+                </label>
+              ) : (
+                <div className="announcement-image-preview">
+                  <img src={imagePreview} alt="Preview" />
+                  <button
+                    type="button"
+                    className="remove-image-btn"
+                    onClick={handleRemoveImage}
+                    disabled={submitting}
+                    title="Remove image"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 

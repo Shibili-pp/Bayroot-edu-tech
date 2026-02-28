@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import PartnerLayout from '../../components/layout/PartnerLayout';
 import DocumentUploadModal from '../../components/DocumentUploadModal';
+import ImageLightbox from '../../components/ImageLightbox';
 import api from '../../api/axios';
 import './Dashboard.css';
 
@@ -32,6 +33,7 @@ const Dashboard = () => {
     studentName: '',
     missingDocument: ''
   });
+  const [lightboxImage, setLightboxImage] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -297,6 +299,7 @@ const Dashboard = () => {
                   ? announcement.content.substring(0, 60) + '...' 
                   : announcement.content,
                 fullContent: announcement.content,
+                imageUrl: announcement.image?.imageUrl || announcement.image?.s3Url || null,
                 isAnnouncement: true
               };
             });
@@ -803,6 +806,18 @@ const Dashboard = () => {
                         </div>
                         <div className="update-text">{update.title}</div>
                         <div className="update-subtext">{update.subtitle}</div>
+                        {update.imageUrl && update.isAnnouncement && (
+                          <div 
+                            className="update-announcement-image update-announcement-image--clickable"
+                            onClick={() => setLightboxImage(update.imageUrl)}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => e.key === 'Enter' && setLightboxImage(update.imageUrl)}
+                            aria-label="View image in full size"
+                          >
+                            <img src={update.imageUrl} alt="Announcement" />
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))
@@ -814,19 +829,17 @@ const Dashboard = () => {
               </div>
               <button className="view-activity-btn">View Full Activity Log</button>
             </div>
-
-            {/* Priority Support */}
-            <div className="support-section">
-              <div className="support-icon">⭐</div>
-              <h3 className="support-title">Priority Support</h3>
-              <p className="support-text">
-                Your agency is eligible for 24/7 priority support this month. Need help with an application or have questions?
-              </p>
-              <button className="support-btn">Contact Support</button>
-            </div>
           </aside>
         </div>
       </div>
+
+      {/* Image Lightbox */}
+      <ImageLightbox
+        isOpen={!!lightboxImage}
+        imageUrl={lightboxImage}
+        alt="Announcement"
+        onClose={() => setLightboxImage(null)}
+      />
 
       {/* Document Upload Modal */}
       <DocumentUploadModal

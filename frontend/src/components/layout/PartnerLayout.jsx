@@ -173,25 +173,6 @@ const PartnerLayout = ({ children }) => {
       )
     },
     { 
-      path: '/partner/applications', 
-      label: 'Applications', 
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-          <path d="M3 4.5H15M3 9H15M3 13.5H12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      )
-    },
-    { 
-      path: '/partner/documents', 
-      label: 'Documents', 
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-          <path d="M4.5 2.25H10.5L13.5 5.25V15.75C13.5 16.1642 13.1642 16.5 12.75 16.5H5.25C4.83579 16.5 4.5 16.1642 4.5 15.75V2.25Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M10.5 2.25V5.25H13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      )
-    },
-    { 
       path: '/partner/settings', 
       label: 'Settings', 
       icon: (

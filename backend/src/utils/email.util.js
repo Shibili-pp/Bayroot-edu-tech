@@ -168,6 +168,84 @@ const sendCommentNotificationEmail = async (to, options) => {
 };
 
 /**
+ * Send new application notification email to admins
+ * When a partner submits a new student application
+ * 
+ * @param {string|string[]} to - Admin email(s)
+ * @param {Object} options - Email options
+ * @param {string} options.studentName - Student full name
+ * @param {string} options.partnerName - Partner company name
+ * @param {string} options.universityName - University name
+ * @param {string} options.courseName - Course name
+ */
+const sendNewApplicationNotificationEmail = async (to, options) => {
+  try {
+    const { studentName, partnerName, universityName, courseName } = options;
+
+    const subject = `New Application Submitted - ${studentName} - Bayroot Edu Connect`;
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #1a5f5f 0%, #0d3d3d 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+          .info-box { background: white; border-left: 4px solid #2563eb; padding: 20px; margin: 20px 0; border-radius: 4px; }
+          .student-name { font-size: 20px; font-weight: bold; color: #1a5f5f; margin-bottom: 10px; }
+          .info-row { margin: 8px 0; }
+          .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Bayroot Edu Connect</h1>
+          </div>
+          <div class="content">
+            <h2>New Application Submitted</h2>
+            <p>A partner has submitted a new student application that requires your review.</p>
+            
+            <div class="info-box">
+              <div class="student-name">📋 Student: ${studentName}</div>
+              <div class="info-row"><strong>Partner:</strong> ${partnerName || 'N/A'}</div>
+              <div class="info-row"><strong>University:</strong> ${universityName || 'N/A'}</div>
+              <div class="info-row"><strong>Course:</strong> ${courseName || 'N/A'}</div>
+            </div>
+            
+            <p><strong>Please log in to your admin dashboard to review this application.</strong></p>
+            
+            <p style="color: #6b7280; font-size: 14px;">This is an automated notification when partners submit new student applications.</p>
+          </div>
+          <div class="footer">
+            <p>© 2026 Doabsy Solutions. All rights reserved.</p>
+            <p>This is an automated email, please do not reply.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const recipients = Array.isArray(to) ? to : [to];
+    const mailOptions = {
+      from: `"Bayroot Edu Connect" <${EMAIL_CONFIG.USER}>`,
+      to: recipients.join(', '),
+      subject: subject,
+      html: htmlContent
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log('New application notification email sent:', info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error('New application notification email error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
  * Verify email transporter configuration
  */
 const verifyEmailConfig = async () => {
@@ -184,6 +262,7 @@ const verifyEmailConfig = async () => {
 module.exports = {
   sendOTPEmail,
   sendCommentNotificationEmail,
+  sendNewApplicationNotificationEmail,
   verifyEmailConfig
 };
 

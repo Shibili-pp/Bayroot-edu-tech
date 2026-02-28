@@ -6,6 +6,7 @@ const NewApplicationModal = ({ isOpen, onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
+    phone: '',
     nationality: '',
     passportNumber: '',
     aadharNumber: '',
@@ -262,7 +263,7 @@ const NewApplicationModal = ({ isOpen, onClose, onSuccess }) => {
       const payload = {
         fullName: formData.fullName.trim(),
         email: formData.email.trim(),
-        phone: '', // Phone number not required in partner interface
+        phone: formData.phone.trim() || '',
         nationality: formData.nationality.trim() || null,
         aadharNumber: formData.aadharNumber.replace(/\s/g, ''),
         courseId: formData.courseId,
@@ -298,6 +299,7 @@ const NewApplicationModal = ({ isOpen, onClose, onSuccess }) => {
         setFormData({
           fullName: '',
           email: '',
+          phone: '',
           nationality: '',
           passportNumber: '',
           aadharNumber: '',
@@ -338,6 +340,7 @@ const NewApplicationModal = ({ isOpen, onClose, onSuccess }) => {
       setFormData({
         fullName: '',
         email: '',
+        phone: '',
         nationality: '',
         passportNumber: '',
         aadharNumber: '',
@@ -413,6 +416,21 @@ const NewApplicationModal = ({ isOpen, onClose, onSuccess }) => {
               value={formData.nationality}
               onChange={handleChange}
               placeholder="e.g., Indian, UAE, etc."
+              disabled={submitting}
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="phone">
+              Phone Number
+            </label>
+            <input
+              type="text"
+              id="phone"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              placeholder="Optional contact number"
               disabled={submitting}
             />
           </div>

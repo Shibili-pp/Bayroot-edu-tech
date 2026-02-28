@@ -1,0 +1,42 @@
+/* Partner Settings - Modern, User-Friendly Layout */
+.partner-settings-page {
+  padding: 0;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.partner-settings-page .settings-header {
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+}
+
+.partner-settings-page .settings-header h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.625rem;
+  font-weight: 600;
+  color: #1e293b;
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.partner-settings-page .settings-header h1::before {
+  content: '';
+  display: inline-block;
+  width: 4px;
+  height: 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 2px;
+}
+
+.partner-settings-page .settings-header p {
+  margin: 0 0 0 1.25rem;
+  font-size: 0.9375rem;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.partner-settings-page .settings-content {
+  max-width: 100%;
+}

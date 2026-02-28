@@ -4,13 +4,14 @@ const announcementController = require('../controllers/announcement.controller')
 const verifyToken = require('../middlewares/auth.middleware');
 const { authorize, checkAdmin } = require('../middlewares/role.middleware');
 const { generalRateLimiter } = require('../middlewares/rateLimit.middleware');
+const { upload } = require('../middlewares/upload.middleware');
 
 // All routes require authentication
 router.use(verifyToken);
 router.use(generalRateLimiter);
 
-// Create announcement (Admin only)
-router.post('/', checkAdmin, announcementController.createAnnouncement);
+// Create announcement (Admin only) - with optional image
+router.post('/', checkAdmin, upload.single('image'), announcementController.createAnnouncement);
 
 // Get all announcements (Admin only)
 router.get('/', checkAdmin, announcementController.getAllAnnouncements);

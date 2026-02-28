@@ -16,7 +16,9 @@ import Intakes from '../pages/admin/Intakes';
 import Announcements from '../pages/admin/Announcements';
 import UpdateTimeline from '../pages/admin/UpdateTimeline';
 import Consultancies from '../pages/admin/Consultancies';
+import AdminSettings from '../pages/admin/AdminSettings';
 import PartnerDashboard from '../pages/partner/Dashboard';
+import PartnerSettings from '../pages/partner/PartnerSettings';
 import Students from '../pages/partner/Students';
 import PartnerStudentDetail from '../pages/partner/StudentDetail';
 import NotFound from '../pages/common/NotFound';
@@ -115,6 +117,7 @@ const AppRoutes = () => {
               <Route path="announcements" element={<Announcements />} />
               <Route path="update-timeline" element={<UpdateTimeline />} />
               <Route path="consultancies" element={<Consultancies />} />
+              <Route path="settings" element={<AdminSettings />} />
               <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
             </Routes>
           </ProtectedRoute>
@@ -130,6 +133,7 @@ const AppRoutes = () => {
               <Route path="dashboard" element={<PartnerDashboard />} />
               <Route path="students" element={<Students />} />
               <Route path="students/:id" element={<PartnerStudentDetail />} />
+              <Route path="settings" element={<PartnerSettings />} />
               <Route path="*" element={<Navigate to="/partner/dashboard" replace />} />
             </Routes>
           </ProtectedRoute>

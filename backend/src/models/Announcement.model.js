@@ -21,6 +21,12 @@ const announcementSchema = new mongoose.Schema({
     enum: ['reminder', 'urgent', 'critical'],
     default: 'reminder'
   },
+  // Optional image (optional)
+  image: {
+    s3Key: { type: String, default: null },
+    s3Url: { type: String, default: null },
+    originalName: { type: String, default: null }
+  },
   // Partner IDs that should NOT see this announcement (hidden from)
   hiddenFromPartners: [{
     type: mongoose.Schema.Types.ObjectId,

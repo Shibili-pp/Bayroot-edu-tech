@@ -1,12 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
+import ImageLightbox from './ImageLightbox';
 import './PartnerNotificationsPopup.css';
 
 const PartnerNotificationsPopup = ({ isOpen, onClose }) => {
   const [actionRequired, setActionRequired] = useState([]);
   const [recentUpdates, setRecentUpdates] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState(null);
   const popupRef = useRef(null);
   const fetchingRef = useRef(false);
   const navigate = useNavigate();
@@ -72,7 +75,8 @@ const PartnerNotificationsPopup = ({ isOpen, onClose }) => {
         };
         
         announcements.forEach(announcement => {
-          const categoryInfo = categoryMap[announcement.category] || categoryMap.reminder;
+          const cat = (announcement.category || '').toLowerCase();
+          const categoryInfo = categoryMap[cat] || categoryMap.reminder;
           allUpdates.push({
             id: `announcement-${announcement._id}`,
             type: 'announcement',
@@ -80,6 +84,7 @@ const PartnerNotificationsPopup = ({ isOpen, onClose }) => {
             categoryType: categoryInfo.type,
             title: 'New Announcement',
             content: announcement.content,
+            imageUrl: announcement.image?.imageUrl || announcement.image?.s3Url || null,
             updatedAt: announcement.createdAt,
             isAnnouncement: true
           });
@@ -131,8 +136,12 @@ const PartnerNotificationsPopup = ({ isOpen, onClose }) => {
         });
       }
       
-      // Sort all updates by date (most recent first)
+      // Sort: Critical announcements first, then by date (most recent first)
       allUpdates.sort((a, b) => {
+        const aCritical = a.type === 'announcement' && a.category === 'Critical';
+        const bCritical = b.type === 'announcement' && b.category === 'Critical';
+        if (aCritical && !bCritical) return -1;
+        if (!aCritical && bCritical) return 1;
         const dateA = new Date(a.updatedAt);
         const dateB = new Date(b.updatedAt);
         return dateB - dateA;
@@ -193,8 +202,15 @@ const PartnerNotificationsPopup = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
-  return (
-    <div className="partner-notifications-popup-overlay">
+  const criticalUpdates = recentUpdates.filter(
+    u => u.type === 'announcement' && (u.category === 'Critical' || (u.category || '').toLowerCase() === 'critical')
+  );
+  const nonCriticalRecentUpdates = recentUpdates.filter(
+    u => !(u.type === 'announcement' && (u.category === 'Critical' || (u.category || '').toLowerCase() === 'critical'))
+  );
+
+  const popupContent = (
+    <div className="partner-notifications-popup-overlay" aria-modal="true" role="dialog">
       <div className="partner-notifications-popup" ref={popupRef}>
         <div className="partner-notifications-popup-header">
           <h3>Notifications</h3>
@@ -213,6 +229,55 @@ const PartnerNotificationsPopup = ({ isOpen, onClose }) => {
             </div>
           ) : (
             <>
+              {/* Critical Announcements - Prominent at top */}
+              {criticalUpdates.length > 0 && (
+                <div className="partner-notifications-section partner-notifications-section--critical">
+                  <div className="partner-notifications-section-header partner-notifications-section-header--critical">
+                    <span className="partner-notifications-section-icon">🚨</span>
+                    <h4>Critical Announcements</h4>
+                  </div>
+                  <div className="partner-notifications-list">
+                    {criticalUpdates.map((update) => (
+                      <div
+                        key={update.id}
+                        className="partner-notification-item partner-notification-item--critical"
+                      >
+                        <div className="partner-notification-badge partner-notification-badge--critical">
+                          🚨
+                        </div>
+                        <div className="partner-notification-content">
+                          <div className="partner-notification-critical-banner">CRITICAL</div>
+                          <div className="partner-notification-header">
+                            <span className="partner-notification-category partner-notification-category--critical">
+                              {update.category}
+                            </span>
+                            <span className="partner-notification-time">{formatTime(update.updatedAt)}</span>
+                          </div>
+                          <div className="partner-notification-title partner-notification-title--critical">
+                            {update.title}
+                          </div>
+                          <div className="partner-notification-message partner-notification-message--critical">
+                            {update.content?.length > 80 ? update.content.substring(0, 80) + '...' : update.content}
+                          </div>
+                          {update.imageUrl && (
+                            <div 
+                              className="partner-notification-announcement-image partner-notification-announcement-image--clickable"
+                              onClick={(e) => { e.stopPropagation(); setLightboxImage(update.imageUrl); }}
+                              role="button"
+                              tabIndex={0}
+                              onKeyDown={(e) => e.key === 'Enter' && setLightboxImage(update.imageUrl)}
+                              aria-label="View image in full size"
+                            >
+                              <img src={update.imageUrl} alt="Announcement" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Action Required Section */}
               <div className="partner-notifications-section">
                 <div className="partner-notifications-section-header">
@@ -263,32 +328,53 @@ const PartnerNotificationsPopup = ({ isOpen, onClose }) => {
                   <span className="partner-notifications-section-icon">📋</span>
                   <h4>Recent Updates</h4>
                 </div>
-                {recentUpdates.length === 0 ? (
+                {nonCriticalRecentUpdates.length === 0 && criticalUpdates.length === 0 ? (
                   <div className="partner-notifications-empty-section">
                     <p>No recent updates</p>
                   </div>
                 ) : (
                   <div className="partner-notifications-list">
-                    {recentUpdates.map((update) => (
+                    {nonCriticalRecentUpdates.map((update) => {
+                      const isCritical = update.type === 'announcement' && update.category === 'Critical';
+                      return (
                       <div
                         key={update.id}
-                        className={`partner-notification-item ${update.type || ''}`}
+                        className={`partner-notification-item ${update.type || ''} ${isCritical ? 'partner-notification-item--critical' : ''}`}
                         onClick={() => update.studentId ? handleUpdateClick(update) : undefined}
                       >
                         {update.type === 'announcement' ? (
                           <>
-                            <div className={`partner-notification-badge partner-notification-badge-${update.categoryType || 'info'}`}>
+                            <div className={`partner-notification-badge partner-notification-badge-${update.categoryType || 'info'} ${isCritical ? 'partner-notification-badge--critical' : ''}`}>
                               {update.category === 'Urgent' ? '⚠️' : update.category === 'Critical' ? '🚨' : '📋'}
                             </div>
                             <div className="partner-notification-content">
+                              {isCritical && (
+                                <div className="partner-notification-critical-banner">CRITICAL</div>
+                              )}
                               <div className="partner-notification-header">
-                                <span className="partner-notification-category">{update.category}</span>
+                                <span className={`partner-notification-category ${isCritical ? 'partner-notification-category--critical' : ''}`}>
+                                  {update.category}
+                                </span>
                                 <span className="partner-notification-time">{formatTime(update.updatedAt)}</span>
                               </div>
-                              <div className="partner-notification-title">{update.title}</div>
-                              <div className="partner-notification-message">
+                              <div className={`partner-notification-title ${isCritical ? 'partner-notification-title--critical' : ''}`}>
+                                {update.title}
+                              </div>
+                              <div className={`partner-notification-message ${isCritical ? 'partner-notification-message--critical' : ''}`}>
                                 {update.content?.length > 80 ? update.content.substring(0, 80) + '...' : update.content}
                               </div>
+                              {update.imageUrl && (
+                                <div 
+                                  className="partner-notification-announcement-image partner-notification-announcement-image--clickable"
+                                  onClick={(e) => { e.stopPropagation(); setLightboxImage(update.imageUrl); }}
+                                  role="button"
+                                  tabIndex={0}
+                                  onKeyDown={(e) => e.key === 'Enter' && setLightboxImage(update.imageUrl)}
+                                  aria-label="View image in full size"
+                                >
+                                  <img src={update.imageUrl} alt="Announcement" />
+                                </div>
+                              )}
                             </div>
                           </>
                         ) : update.type === 'document' ? (
@@ -321,7 +407,8 @@ const PartnerNotificationsPopup = ({ isOpen, onClose }) => {
                           </>
                         )}
                       </div>
-                    ))}
+                    );
+                    })}
                   </div>
                 )}
               </div>
@@ -329,7 +416,7 @@ const PartnerNotificationsPopup = ({ isOpen, onClose }) => {
           )}
         </div>
 
-        {(actionRequired.length > 0 || recentUpdates.length > 0) && (
+        {(actionRequired.length > 0 || recentUpdates.length > 0 || criticalUpdates.length > 0) && (
           <div className="partner-notifications-popup-footer">
             <button 
               className="partner-notifications-view-all"
@@ -343,8 +430,16 @@ const PartnerNotificationsPopup = ({ isOpen, onClose }) => {
           </div>
         )}
       </div>
+      <ImageLightbox
+        isOpen={!!lightboxImage}
+        imageUrl={lightboxImage}
+        alt="Announcement"
+        onClose={() => setLightboxImage(null)}
+      />
     </div>
   );
+
+  return createPortal(popupContent, document.body);
 };
 
 export default PartnerNotificationsPopup;

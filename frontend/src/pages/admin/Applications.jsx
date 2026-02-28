@@ -33,6 +33,62 @@ const Applications = () => {
   
   const [selectedStatus, setSelectedStatus] = useState(getInitialStatus());
 
+  // Multi-filter state
+  const [filters, setFilters] = useState({
+    partner: '',
+    course: '',
+    status: '',
+    intake: '',
+    university: '',
+    country: ''
+  });
+
+  const updateFilter = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const clearAllFilters = () => {
+    setSelectedStatus('All');
+    setFilters({ partner: '', course: '', status: '', intake: '', university: '', country: '' });
+  };
+
+  const statusOptions = [
+    'All',
+    'Under Review',
+    'Offer Requested',
+    'Offer Received',
+    'Application payment 1 received',
+    'Application Moved',
+    'Ministry Submitted',
+    'Exam issued',
+    'Application payment 2 received',
+    'Fee Paid',
+    'Visa Documents Issued',
+    'Visa Submitted',
+    'Visa Received',
+    'Full fee',
+    'Application payment 3 received',
+    'Visa rejected',
+    'Trc request',
+    'Trc approved',
+    'Trc rejected',
+    'Student Dropped'
+  ];
+
+  // Extract unique filter options from applications data
+  const filterOptions = {
+    partners: [...new Set(applications.map(a => 
+      a.partner?.companyName || (typeof a.partnerId === 'object' ? a.partnerId?.companyName : null) || ''
+    ).filter(Boolean))].sort(),
+    courses: [...new Set(applications.map(a => a.courseId?.name).filter(Boolean))].sort(),
+    statuses: statusOptions.filter(s => s !== 'All'),
+    intakes: [...new Set(applications.map(a => a.intakeId?.name || a.intake?.name).filter(Boolean))].sort(),
+    universities: [...new Set(applications.map(a => a.universityId?.name).filter(Boolean))].sort(),
+    countries: [...new Set(applications.map(a => a.universityId?.country).filter(Boolean))].sort()
+  };
+
+  const hasActiveFilters = selectedStatus !== 'All' || Object.values(filters).some(v => v);
+
   useEffect(() => {
     fetchApplications();
   }, []);
@@ -79,67 +135,61 @@ const Applications = () => {
     }
   };
 
-  const statusOptions = [
-    'All',
-    'Under Review',
-    'Offer Requested',
-    'Offer Received',
-    'Application payment 1 received',
-    'Application Moved',
-    'Ministry Submitted',
-    'Exam issued',
-    'Application payment 2 received',
-    'Fee Paid',
-    'Visa Documents Issued',
-    'Visa Submitted',
-    'Visa Received',
-    'Full fee',
-    'Application payment 3 received',
-    'Visa rejected',
-    'Trc request',
-    'Trc approved',
-    'Trc rejected',
-    'Student Dropped'
-  ];
-
   const filteredApplications = applications.filter(app => {
-    // Filter by status or category
-    if (selectedStatus !== 'All') {
-      const appStatus = app.status || 'Under Review';
-      
-      // Handle special categories
-      if (selectedStatus === 'offer-letter') {
-        if (!['Under Review', 'Offer Requested', 'Offer Received'].includes(appStatus)) {
-          return false;
-        }
-      } else if (selectedStatus === 'application') {
-        if (!['Application payment 1 received', 'Application Moved', 'Ministry Submitted', 'Exam issued', 'Application payment 2 received', 'Fee Paid'].includes(appStatus)) {
-          return false;
-        }
-      } else if (selectedStatus === 'visa') {
-        if (!['Visa Documents Issued', 'Visa Submitted', 'Full fee', 'Application payment 3 received'].includes(appStatus)) {
-          return false;
-        }
-      } else if (selectedStatus === 'trc') {
-        if (!['Trc request', 'Trc approved', 'Trc rejected'].includes(appStatus)) {
-          return false;
-        }
-      } else if (appStatus !== selectedStatus) {
-        return false;
-      }
+    const appStatus = app.status || 'Under Review';
+    const partnerName = app.partner?.companyName || (typeof app.partnerId === 'object' ? app.partnerId?.companyName : null) || '';
+
+    // Multi-filter: Partner
+    if (filters.partner && partnerName !== filters.partner) return false;
+
+    // Multi-filter: Course
+    if (filters.course && (app.courseId?.name || '') !== filters.course) return false;
+
+    // Multi-filter: Status
+    if (filters.status) {
+      if (filters.status === 'offer-letter' && !['Under Review', 'Offer Requested', 'Offer Received'].includes(appStatus)) return false;
+      else if (filters.status === 'application' && !['Application payment 1 received', 'Application Moved', 'Ministry Submitted', 'Exam issued', 'Application payment 2 received', 'Fee Paid'].includes(appStatus)) return false;
+      else if (filters.status === 'visa' && !['Visa Documents Issued', 'Visa Submitted', 'Full fee', 'Application payment 3 received'].includes(appStatus)) return false;
+      else if (filters.status === 'trc' && !['Trc request', 'Trc approved', 'Trc rejected'].includes(appStatus)) return false;
+      else if (!['offer-letter', 'application', 'visa', 'trc'].includes(filters.status) && appStatus !== filters.status) return false;
     }
 
-    // Filter by search term
-    if (!searchTerm) return true;
-    const search = searchTerm.toLowerCase();
-    return (
-      app.fullName?.toLowerCase().includes(search) ||
-      app.universityId?.name?.toLowerCase().includes(search) ||
-      app.courseId?.name?.toLowerCase().includes(search) ||
-      app.email?.toLowerCase().includes(search) ||
-      app.partner?.companyName?.toLowerCase().includes(search) ||
-      app.partnerId?.companyName?.toLowerCase().includes(search)
-    );
+    // Legacy status filter (quick buttons)
+    if (selectedStatus !== 'All') {
+      if (selectedStatus === 'offer-letter') {
+        if (!['Under Review', 'Offer Requested', 'Offer Received'].includes(appStatus)) return false;
+      } else if (selectedStatus === 'application') {
+        if (!['Application payment 1 received', 'Application Moved', 'Ministry Submitted', 'Exam issued', 'Application payment 2 received', 'Fee Paid'].includes(appStatus)) return false;
+      } else if (selectedStatus === 'visa') {
+        if (!['Visa Documents Issued', 'Visa Submitted', 'Full fee', 'Application payment 3 received'].includes(appStatus)) return false;
+      } else if (selectedStatus === 'trc') {
+        if (!['Trc request', 'Trc approved', 'Trc rejected'].includes(appStatus)) return false;
+      } else if (appStatus !== selectedStatus) return false;
+    }
+
+    // Multi-filter: Intake
+    if (filters.intake && (app.intakeId?.name || app.intake?.name || '') !== filters.intake) return false;
+
+    // Multi-filter: University
+    if (filters.university && (app.universityId?.name || '') !== filters.university) return false;
+
+    // Multi-filter: Country
+    if (filters.country && (app.universityId?.country || '') !== filters.country) return false;
+
+    // Search term
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      if (!(
+        app.fullName?.toLowerCase().includes(search) ||
+        app.universityId?.name?.toLowerCase().includes(search) ||
+        app.courseId?.name?.toLowerCase().includes(search) ||
+        app.email?.toLowerCase().includes(search) ||
+        app.partner?.companyName?.toLowerCase().includes(search) ||
+        app.partnerId?.companyName?.toLowerCase().includes(search)
+      )) return false;
+    }
+
+    return true;
   });
 
   const getStatusBadge = (app) => {
@@ -331,6 +381,132 @@ const Applications = () => {
               TRC
             </button>
           </div>
+
+          {/* Multi-Filter Panel */}
+          <div className="multi-filter-panel">
+            <div className="multi-filter-header">
+              <span className="multi-filter-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+                </svg>
+                Advanced Filters
+              </span>
+              {hasActiveFilters && (
+                <button type="button" className="btn-clear-filters" onClick={clearAllFilters}>
+                  Clear all
+                </button>
+              )}
+            </div>
+            <div className="multi-filter-grid">
+              <div className="multi-filter-item">
+                <label>Partner</label>
+                <select
+                  value={filters.partner}
+                  onChange={(e) => updateFilter('partner', e.target.value)}
+                  className="multi-filter-select"
+                >
+                  <option value="">All Partners</option>
+                  {filterOptions.partners.map(p => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="multi-filter-item">
+                <label>Course</label>
+                <select
+                  value={filters.course}
+                  onChange={(e) => updateFilter('course', e.target.value)}
+                  className="multi-filter-select"
+                >
+                  <option value="">All Courses</option>
+                  {filterOptions.courses.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="multi-filter-item">
+                <label>Status</label>
+                <select
+                  value={filters.status}
+                  onChange={(e) => updateFilter('status', e.target.value)}
+                  className="multi-filter-select"
+                >
+                  <option value="">All Statuses</option>
+                  <optgroup label="Offer Letter">
+                    <option value="Under Review">Under Review</option>
+                    <option value="Offer Requested">Offer Requested</option>
+                    <option value="Offer Received">Offer Received</option>
+                  </optgroup>
+                  <optgroup label="Application">
+                    <option value="Application payment 1 received">Application payment 1 received</option>
+                    <option value="Application Moved">Application Moved</option>
+                    <option value="Ministry Submitted">Ministry Submitted</option>
+                    <option value="Exam issued">Exam issued</option>
+                    <option value="Application payment 2 received">Application payment 2 received</option>
+                    <option value="Fee Paid">Fee Paid</option>
+                  </optgroup>
+                  <optgroup label="Visa">
+                    <option value="Visa Documents Issued">Visa Documents Issued</option>
+                    <option value="Visa Submitted">Visa Submitted</option>
+                    <option value="Full fee">Full fee</option>
+                    <option value="Application payment 3 received">Application payment 3 received</option>
+                    <option value="Visa Received">Visa Received</option>
+                    <option value="Visa rejected">Visa rejected</option>
+                  </optgroup>
+                  <optgroup label="TRC">
+                    <option value="Trc request">Trc request</option>
+                    <option value="Trc approved">Trc approved</option>
+                    <option value="Trc rejected">Trc rejected</option>
+                  </optgroup>
+                  <optgroup label="Other">
+                    <option value="Student Dropped">Student Dropped</option>
+                  </optgroup>
+                </select>
+              </div>
+              <div className="multi-filter-item">
+                <label>Intake</label>
+                <select
+                  value={filters.intake}
+                  onChange={(e) => updateFilter('intake', e.target.value)}
+                  className="multi-filter-select"
+                >
+                  <option value="">All Intakes</option>
+                  {filterOptions.intakes.map(i => (
+                    <option key={i} value={i}>{i}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="multi-filter-item">
+                <label>University</label>
+                <select
+                  value={filters.university}
+                  onChange={(e) => updateFilter('university', e.target.value)}
+                  className="multi-filter-select"
+                >
+                  <option value="">All Universities</option>
+                  {filterOptions.universities.map(u => (
+                    <option key={u} value={u}>{u}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="multi-filter-item">
+                <label>Country</label>
+                <select
+                  value={filters.country}
+                  onChange={(e) => updateFilter('country', e.target.value)}
+                  className="multi-filter-select"
+                >
+                  <option value="">All Countries</option>
+                  {filterOptions.countries.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <p className="multi-filter-result-hint">
+              Total applications: {applications.length || 0} • After filters: {filteredApplications.length || 0}
+            </p>
+          </div>
         </div>
 
         {/* Applications List */}
@@ -349,6 +525,7 @@ const Applications = () => {
                   <th>Course</th>
                   <th>Partner Name</th>
                   <th>Email</th>
+                  <th>Phone</th>
                   <th>Documents</th>
                   <th>Status</th>
                   <th>Created Date</th>
@@ -375,6 +552,7 @@ const Applications = () => {
                       <td>{app.courseId?.name || 'N/A'}</td>
                       <td>{app.partner?.companyName || app.partnerId?.companyName || (typeof app.partnerId === 'object' ? app.partnerId?.companyName : 'Unknown Partner')}</td>
                       <td>{app.email || 'N/A'}</td>
+                      <td>{app.phone || 'N/A'}</td>
                       <td>
                         <span className="doc-count">
                           {app.documents?.length || 0}
@@ -397,10 +575,15 @@ const Applications = () => {
             <div className="empty-icon">📋</div>
             <p>No applications found</p>
             <p className="empty-subtext">
-              {searchTerm 
-                ? 'Try adjusting your search terms' 
+              {searchTerm || hasActiveFilters
+                ? 'Try adjusting your search or filters'
                 : 'Applications will appear here once students are registered'}
             </p>
+            {hasActiveFilters && (
+              <button type="button" className="btn-clear-filters-empty" onClick={clearAllFilters}>
+                Clear all filters
+              </button>
+            )}
           </div>
         )}
       </div>

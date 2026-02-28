@@ -149,6 +149,21 @@
   margin: 0;
 }
 
+.announcement-image-page {
+  margin-top: 1rem;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  max-width: 100%;
+}
+
+.announcement-image-page img {
+  display: block;
+  max-width: 100%;
+  max-height: 300px;
+  object-fit: contain;
+}
+
 .announcement-footer-page {
   display: flex;
   justify-content: space-between;

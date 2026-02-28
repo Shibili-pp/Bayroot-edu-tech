@@ -176,6 +176,15 @@ const Announcements = () => {
                   </div>
                   <div className="announcement-content-page">
                     <p>{announcement.content}</p>
+                    {(announcement.image?.imageUrl || announcement.image?.s3Url) && (
+                      <div className="announcement-image-page">
+                        <img 
+                          src={announcement.image.imageUrl || announcement.image.s3Url} 
+                          alt="Announcement" 
+                          onError={(e) => { e.target.style.display = 'none'; }}
+                        />
+                      </div>
+                    )}
                   </div>
                   <div className="announcement-footer-page">
                     <span className="announcement-date-page">{formatDate(announcement.createdAt)}</span>

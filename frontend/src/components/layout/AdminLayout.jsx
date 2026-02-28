@@ -49,32 +49,12 @@ const AdminLayout = ({ children }) => {
       )
     },
     { 
-      path: '/admin/documents', 
-      label: 'Documents', 
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-          <path d="M4.5 2.25H10.5L13.5 5.25V15.75C13.5 16.1642 13.1642 16.5 12.75 16.5H5.25C4.83579 16.5 4.5 16.1642 4.5 15.75V2.25Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M10.5 2.25V5.25H13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      )
-    },
-    { 
       path: '/admin/consultancies', 
       label: 'Partners', 
       icon: (
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
           <path d="M9 9C11.0711 9 12.75 7.32107 12.75 5.25C12.75 3.17893 11.0711 1.5 9 1.5C6.92893 1.5 5.25 3.17893 5.25 5.25C5.25 7.32107 6.92893 9 9 9Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
           <path d="M3.75 16.5C3.75 13.5975 6.1425 11.25 9 11.25C11.8575 11.25 14.25 13.5975 14.25 16.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      )
-    },
-    { 
-      path: '/admin/reports', 
-      label: 'Reports', 
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-          <path d="M3 13.5V15.75H15V13.5M3 13.5L6 9.75L9 12.75L12.75 8.25L15 10.5M3 13.5H15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M3 2.25H15V4.5H3V2.25Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       )
     },
