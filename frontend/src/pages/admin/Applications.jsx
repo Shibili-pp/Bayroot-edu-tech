@@ -33,14 +33,14 @@ const Applications = () => {
   
   const [selectedStatus, setSelectedStatus] = useState(getInitialStatus());
 
-  // Multi-filter state
+  // Multi-filter state (now supports selecting multiple values)
   const [filters, setFilters] = useState({
-    partner: '',
-    course: '',
-    status: '',
-    intake: '',
-    university: '',
-    country: ''
+    partner: [],
+    course: [],
+    status: [],
+    intake: [],
+    university: [],
+    country: []
   });
 
   const updateFilter = (key, value) => {
@@ -49,7 +49,14 @@ const Applications = () => {
 
   const clearAllFilters = () => {
     setSelectedStatus('All');
-    setFilters({ partner: '', course: '', status: '', intake: '', university: '', country: '' });
+    setFilters({
+      partner: [],
+      course: [],
+      status: [],
+      intake: [],
+      university: [],
+      country: []
+    });
   };
 
   const statusOptions = [
@@ -87,7 +94,7 @@ const Applications = () => {
     countries: [...new Set(applications.map(a => a.universityId?.country).filter(Boolean))].sort()
   };
 
-  const hasActiveFilters = selectedStatus !== 'All' || Object.values(filters).some(v => v);
+  const hasActiveFilters = selectedStatus !== 'All' || Object.values(filters).some(v => Array.isArray(v) ? v.length > 0 : Boolean(v));
 
   useEffect(() => {
     fetchApplications();
@@ -139,19 +146,33 @@ const Applications = () => {
     const appStatus = app.status || 'Under Review';
     const partnerName = app.partner?.companyName || (typeof app.partnerId === 'object' ? app.partnerId?.companyName : null) || '';
 
-    // Multi-filter: Partner
-    if (filters.partner && partnerName !== filters.partner) return false;
+    // Multi-filter: Partner (supports multiple selected partners)
+    if (filters.partner.length > 0 && !filters.partner.includes(partnerName)) return false;
 
     // Multi-filter: Course
-    if (filters.course && (app.courseId?.name || '') !== filters.course) return false;
+    const courseName = app.courseId?.name || '';
+    if (filters.course.length > 0 && !filters.course.includes(courseName)) return false;
 
-    // Multi-filter: Status
-    if (filters.status) {
-      if (filters.status === 'offer-letter' && !['Under Review', 'Offer Requested', 'Offer Received'].includes(appStatus)) return false;
-      else if (filters.status === 'application' && !['Application payment 1 received', 'Application Moved', 'Ministry Submitted', 'Exam issued', 'Application payment 2 received', 'Fee Paid'].includes(appStatus)) return false;
-      else if (filters.status === 'visa' && !['Visa Documents Issued', 'Visa Submitted', 'Full fee', 'Application payment 3 received'].includes(appStatus)) return false;
-      else if (filters.status === 'trc' && !['Trc request', 'Trc approved', 'Trc rejected'].includes(appStatus)) return false;
-      else if (!['offer-letter', 'application', 'visa', 'trc'].includes(filters.status) && appStatus !== filters.status) return false;
+    // Multi-filter: Status (supports multiple selected statuses/groups, OR logic)
+    if (filters.status.length > 0) {
+      const statusMatches = filters.status.some(selectedStatusFilter => {
+        if (selectedStatusFilter === 'offer-letter') {
+          return ['Under Review', 'Offer Requested', 'Offer Received'].includes(appStatus);
+        }
+        if (selectedStatusFilter === 'application') {
+          return ['Application payment 1 received', 'Application Moved', 'Ministry Submitted', 'Exam issued', 'Application payment 2 received', 'Fee Paid'].includes(appStatus);
+        }
+        if (selectedStatusFilter === 'visa') {
+          return ['Visa Documents Issued', 'Visa Submitted', 'Full fee', 'Application payment 3 received'].includes(appStatus);
+        }
+        if (selectedStatusFilter === 'trc') {
+          return ['Trc request', 'Trc approved', 'Trc rejected'].includes(appStatus);
+        }
+        // Direct status match
+        return appStatus === selectedStatusFilter;
+      });
+
+      if (!statusMatches) return false;
     }
 
     // Legacy status filter (quick buttons)
@@ -168,13 +189,16 @@ const Applications = () => {
     }
 
     // Multi-filter: Intake
-    if (filters.intake && (app.intakeId?.name || app.intake?.name || '') !== filters.intake) return false;
+    const intakeName = app.intakeId?.name || app.intake?.name || '';
+    if (filters.intake.length > 0 && !filters.intake.includes(intakeName)) return false;
 
     // Multi-filter: University
-    if (filters.university && (app.universityId?.name || '') !== filters.university) return false;
+    const universityName = app.universityId?.name || '';
+    if (filters.university.length > 0 && !filters.university.includes(universityName)) return false;
 
     // Multi-filter: Country
-    if (filters.country && (app.universityId?.country || '') !== filters.country) return false;
+    const countryName = app.universityId?.country || '';
+    if (filters.country.length > 0 && !filters.country.includes(countryName)) return false;
 
     // Search term
     if (searchTerm) {
@@ -401,11 +425,16 @@ const Applications = () => {
               <div className="multi-filter-item">
                 <label>Partner</label>
                 <select
+                  multiple
                   value={filters.partner}
-                  onChange={(e) => updateFilter('partner', e.target.value)}
+                  onChange={(e) =>
+                    updateFilter(
+                      'partner',
+                      Array.from(e.target.selectedOptions, option => option.value)
+                    )
+                  }
                   className="multi-filter-select"
                 >
-                  <option value="">All Partners</option>
                   {filterOptions.partners.map(p => (
                     <option key={p} value={p}>{p}</option>
                   ))}
@@ -414,11 +443,16 @@ const Applications = () => {
               <div className="multi-filter-item">
                 <label>Course</label>
                 <select
+                  multiple
                   value={filters.course}
-                  onChange={(e) => updateFilter('course', e.target.value)}
+                  onChange={(e) =>
+                    updateFilter(
+                      'course',
+                      Array.from(e.target.selectedOptions, option => option.value)
+                    )
+                  }
                   className="multi-filter-select"
                 >
-                  <option value="">All Courses</option>
                   {filterOptions.courses.map(c => (
                     <option key={c} value={c}>{c}</option>
                   ))}
@@ -427,17 +461,24 @@ const Applications = () => {
               <div className="multi-filter-item">
                 <label>Status</label>
                 <select
+                  multiple
                   value={filters.status}
-                  onChange={(e) => updateFilter('status', e.target.value)}
+                  onChange={(e) =>
+                    updateFilter(
+                      'status',
+                      Array.from(e.target.selectedOptions, option => option.value)
+                    )
+                  }
                   className="multi-filter-select"
                 >
-                  <option value="">All Statuses</option>
                   <optgroup label="Offer Letter">
+                    <option value="offer-letter">All Offer Letter Statuses</option>
                     <option value="Under Review">Under Review</option>
                     <option value="Offer Requested">Offer Requested</option>
                     <option value="Offer Received">Offer Received</option>
                   </optgroup>
                   <optgroup label="Application">
+                    <option value="application">All Application Statuses</option>
                     <option value="Application payment 1 received">Application payment 1 received</option>
                     <option value="Application Moved">Application Moved</option>
                     <option value="Ministry Submitted">Ministry Submitted</option>
@@ -446,6 +487,7 @@ const Applications = () => {
                     <option value="Fee Paid">Fee Paid</option>
                   </optgroup>
                   <optgroup label="Visa">
+                    <option value="visa">All Visa Statuses</option>
                     <option value="Visa Documents Issued">Visa Documents Issued</option>
                     <option value="Visa Submitted">Visa Submitted</option>
                     <option value="Full fee">Full fee</option>
@@ -454,6 +496,7 @@ const Applications = () => {
                     <option value="Visa rejected">Visa rejected</option>
                   </optgroup>
                   <optgroup label="TRC">
+                    <option value="trc">All TRC Statuses</option>
                     <option value="Trc request">Trc request</option>
                     <option value="Trc approved">Trc approved</option>
                     <option value="Trc rejected">Trc rejected</option>
@@ -466,11 +509,16 @@ const Applications = () => {
               <div className="multi-filter-item">
                 <label>Intake</label>
                 <select
+                  multiple
                   value={filters.intake}
-                  onChange={(e) => updateFilter('intake', e.target.value)}
+                  onChange={(e) =>
+                    updateFilter(
+                      'intake',
+                      Array.from(e.target.selectedOptions, option => option.value)
+                    )
+                  }
                   className="multi-filter-select"
                 >
-                  <option value="">All Intakes</option>
                   {filterOptions.intakes.map(i => (
                     <option key={i} value={i}>{i}</option>
                   ))}
@@ -479,11 +527,16 @@ const Applications = () => {
               <div className="multi-filter-item">
                 <label>University</label>
                 <select
+                  multiple
                   value={filters.university}
-                  onChange={(e) => updateFilter('university', e.target.value)}
+                  onChange={(e) =>
+                    updateFilter(
+                      'university',
+                      Array.from(e.target.selectedOptions, option => option.value)
+                    )
+                  }
                   className="multi-filter-select"
                 >
-                  <option value="">All Universities</option>
                   {filterOptions.universities.map(u => (
                     <option key={u} value={u}>{u}</option>
                   ))}
@@ -492,11 +545,16 @@ const Applications = () => {
               <div className="multi-filter-item">
                 <label>Country</label>
                 <select
+                  multiple
                   value={filters.country}
-                  onChange={(e) => updateFilter('country', e.target.value)}
+                  onChange={(e) =>
+                    updateFilter(
+                      'country',
+                      Array.from(e.target.selectedOptions, option => option.value)
+                    )
+                  }
                   className="multi-filter-select"
                 >
-                  <option value="">All Countries</option>
                   {filterOptions.countries.map(c => (
                     <option key={c} value={c}>{c}</option>
                   ))}
