@@ -1,4 +1,5 @@
 const http = require('http');
+const { exec } = require('child_process');
 const app = require('./src/app');
 const { connectDB } = require('./src/config/db');
 const { PORT } = require('./src/config/env');
@@ -16,12 +17,32 @@ verifyEmailConfig().then((isReady) => {
   }
 });
 
+// -----------------------------
+// GitHub Webhook Deploy Route
+// -----------------------------
+app.post('/deploy', (req, res) => {
+  console.log('🚀 GitHub webhook triggered: Deploying new code...');
+
+  exec(
+    'cd /home/ubuntu/Bayroot-edu-tech/backend && git pull origin main && npm install && pm2 restart bayroot-backend',
+    (error, stdout, stderr) => {
+      if (error) {
+        console.error('❌ Deployment error:', error);
+        return res.status(500).send('Deployment failed');
+      }
+
+      console.log(stdout);
+      console.log('✅ Deployment successful');
+
+      res.status(200).send('Deployment successful');
+    }
+  );
+});
+
 // ARCHITECTURE IMPROVEMENT: Create HTTP server for Socket.IO integration
-// Socket.IO requires an HTTP server instance, not just Express app
 const server = http.createServer(app);
 
 // Initialize Socket.IO server
-// This enables real-time WebSocket communication for notifications
 initializeSocket(server);
 
 // Start server
@@ -30,7 +51,3 @@ server.listen(PORT, () => {
   console.log(`Health check: http://localhost:${PORT}/api/health`);
   console.log(`Socket.IO: WebSocket server initialized for real-time updates`);
 });
-
-
-
-
