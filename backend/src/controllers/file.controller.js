@@ -5,7 +5,7 @@ const Comment = require('../models/Comment.model');
 const { sendSuccess, sendError } = require('../utils/response.util');
 const { logAudit, getClientIp } = require('../utils/audit.util');
 const { uploadToS3, deleteFromS3, fileExistsInS3, getPresignedUrl, getFileFromS3 } = require('../services/s3.service');
-const { getFileType } = require('../middlewares/upload.middleware');
+const { getFileType, MAX_FILE_SIZE_BYTES } = require('../middlewares/upload.middleware');
 const { v4: uuidv4 } = require('uuid');
 
 /**
@@ -28,9 +28,8 @@ const uploadFile = async (req, res) => {
     }
 
     // Validate file size (already validated by multer, but double-check)
-    const maxSize = 20 * 1024 * 1024; // 20MB
-    if (req.file.size > maxSize) {
-      return sendError(res, 'File size exceeds maximum limit of 20MB', 400);
+    if (req.file.size > MAX_FILE_SIZE_BYTES) {
+      return sendError(res, 'File size exceeds maximum limit of 150MB', 400);
     }
 
     // Generate file ID
@@ -380,7 +379,20 @@ const downloadDocument = async (req, res) => {
 
     // Get file from S3
     const fileData = await getFileFromS3(decodedS3Key);
-    const originalName = filename || fileData.Metadata.originalName || 'document';
+    const meta = fileData.Metadata || {};
+    const origB64 = meta.origb64 || meta.Origb64;
+    let resolvedName = filename;
+    if (!resolvedName && origB64) {
+      try {
+        resolvedName = Buffer.from(origB64, 'base64').toString('utf8');
+      } catch {
+        resolvedName = null;
+      }
+    }
+    if (!resolvedName) {
+      resolvedName = meta.originalname || meta.originalName;
+    }
+    const originalName = resolvedName || 'document';
 
     // Set headers to force download
     res.setHeader('Content-Type', fileData.ContentType);

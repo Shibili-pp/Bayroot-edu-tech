@@ -2,7 +2,36 @@ const { PutObjectCommand, DeleteObjectCommand, HeadObjectCommand, GetObjectComma
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { s3Client, s3Config, getS3Folder, getS3Url } = require('../config/s3.config');
 const { v4: uuidv4 } = require('uuid');
-const path = require('path');
+
+/**
+ * Build a safe ASCII-only file extension for the S3 object key.
+ * Do NOT use path.extname(originalName): names with multiple dots / mixed scripts
+ * (e.g. Georgian "ია.გ..pdf") can yield a non-ASCII "extension", which ends up in
+ * the S3 Key and breaks AWS Signature V4 signing ("signature does not match").
+ * The human-readable name (any language) stays in MongoDB as originalName.
+ */
+const resolveAsciiStorageExtension = (originalName, mimeType, fileType) => {
+  const name = String(originalName || '');
+  const asciiExt = name.match(/(\.[A-Za-z0-9]{1,12})$/);
+  if (asciiExt) {
+    return asciiExt[1].toLowerCase();
+  }
+  const mimeMap = {
+    'application/pdf': '.pdf',
+    'image/jpeg': '.jpg',
+    'image/jpg': '.jpg',
+    'image/png': '.png',
+    'image/webp': '.webp',
+    'video/mp4': '.mp4',
+    'video/quicktime': '.mov',
+    'video/webm': '.webm',
+  };
+  const m = (mimeType && String(mimeType).toLowerCase()) || '';
+  if (mimeMap[m]) return mimeMap[m];
+  const typeMap = { image: '.jpg', video: '.mp4', pdf: '.pdf' };
+  if (fileType && typeMap[fileType]) return typeMap[fileType];
+  return '.bin';
+};
 
 /**
  * Upload file to S3
@@ -14,26 +43,32 @@ const path = require('path');
  */
 const uploadToS3 = async (fileBuffer, originalName, fileType, mimeType) => {
   try {
-    // Generate unique filename
+    // Generate unique filename (ASCII key only — see resolveAsciiStorageExtension)
     const fileId = uuidv4();
-    const ext = path.extname(originalName).toLowerCase();
+    const ext = resolveAsciiStorageExtension(originalName, mimeType, fileType);
     const fileName = `${fileId}${ext}`;
     
     // Get S3 folder path
     const folder = getS3Folder(fileType);
     const s3Key = `${folder}${fileName}`;
 
+    // Do NOT attach user-defined Metadata (x-amz-meta-*) to PutObject.
+    // Any non-ASCII in metadata values — and base64's "+" / "/" in values — can break
+    // AWS Signature V4 signing. Original display names are stored in MongoDB only
+    // (student.documents.originalName, comments, etc.).
+
+    // MIME must be ASCII-only for signing; strip parameters (e.g. charset) some clients send
+    const rawMime = String(mimeType || 'application/octet-stream').split(';')[0].trim();
+    const contentType = /^(application|image|video|audio|text)\/[a-z0-9.+-]+$/i.test(rawMime)
+      ? rawMime
+      : 'application/octet-stream';
+
     // Upload to S3
     const command = new PutObjectCommand({
       Bucket: s3Config.bucketName,
       Key: s3Key,
       Body: fileBuffer,
-      ContentType: mimeType,
-      // Add metadata
-      Metadata: {
-        originalName: originalName,
-        uploadedAt: new Date().toISOString(),
-      },
+      ContentType: contentType,
     });
 
     await s3Client.send(command);

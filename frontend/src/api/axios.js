@@ -1,21 +1,52 @@
 import axios from 'axios';
 import apiCache from '../utils/apiCache';
 
+const LOCAL_API_BASE_URL = 'http://localhost:3000/api';
+const shouldForceLocalApiInDev =
+  import.meta.env.DEV &&
+  typeof window !== 'undefined' &&
+  window.location.hostname === 'localhost' &&
+  String(import.meta.env.VITE_USE_REMOTE_API || '').toLowerCase() !== 'true';
+
+const resolvedBaseUrl = shouldForceLocalApiInDev
+  ? LOCAL_API_BASE_URL
+  : (import.meta.env.VITE_API_BASE_URL || LOCAL_API_BASE_URL);
+
 // Create axios instance with base configuration
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api',
-  timeout: 10000,
+  baseURL: resolvedBaseUrl,
+  // NOTE: uploads to S3 can easily take >10s (especially multiple files).
+  // Keep a reasonable default, and use a larger timeout for multipart uploads.
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
+const UPLOAD_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+
+const isMultipartUpload = (config) => {
+  const contentType = config?.headers?.['Content-Type'] || config?.headers?.['content-type'];
+  if (typeof contentType === 'string' && contentType.toLowerCase().includes('multipart/form-data')) return true;
+  return config?.data instanceof FormData;
+};
+
 // Request interceptor - Attach JWT token
 axiosInstance.interceptors.request.use(
   (config) => {
+    // Extend timeout for file uploads
+    if (isMultipartUpload(config)) {
+      config.timeout = Math.max(config.timeout || 0, UPLOAD_TIMEOUT_MS);
+    }
+
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    // Default instance sets application/json; FormData needs no Content-Type so the runtime sets multipart boundary
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
     }
     return config;
   },

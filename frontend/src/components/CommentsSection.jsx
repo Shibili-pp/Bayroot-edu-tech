@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import api, { invalidateCache } from '../api/axios';
+import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_MB } from '../constants/upload';
 import './CommentsSection.css';
 
 const CommentsSection = ({ studentId, userRole }) => {
@@ -75,13 +76,13 @@ const CommentsSection = ({ studentId, userRole }) => {
   const handleFileSelect = (e) => {
     const files = Array.from(e.target.files);
     const validFiles = files.filter(file => {
-      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf', 'video/mp4'];
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf', 'video/mp4', 'video/quicktime', 'video/webm'];
       if (!validTypes.includes(file.type)) {
-        alert(`${file.name} is not a valid file type. Please upload JPG, PNG, PDF, or MP4 files.`);
+        alert(`${file.name} is not a valid file type. Please upload JPG, JPEG, PNG, WEBP, PDF, MP4, MOV, or WEBM files.`);
         return false;
       }
-      if (file.size > 20 * 1024 * 1024) {
-        alert(`${file.name} exceeds 20MB limit.`);
+      if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+        alert(`${file.name} exceeds ${MAX_UPLOAD_SIZE_MB}MB limit.`);
         return false;
       }
       return true;
@@ -111,11 +112,8 @@ const CommentsSection = ({ studentId, userRole }) => {
         formData.append('documents', file);
       });
 
-      const response = await api.post(`/comments/student/${studentId}`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
+      // Let the browser set multipart/form-data with the correct boundary (manual header breaks parsing)
+      const response = await api.post(`/comments/student/${studentId}`, formData);
 
       if (response.data.success) {
         const newCommentData = response.data.data.comment;
@@ -171,11 +169,8 @@ const CommentsSection = ({ studentId, userRole }) => {
         formData.append('documents', file);
       });
 
-      const response = await api.post(`/comments/student/${studentId}`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
+      // Let the browser set multipart/form-data with the correct boundary (manual header breaks parsing)
+      const response = await api.post(`/comments/student/${studentId}`, formData);
 
       if (response.data.success) {
         const newReplyData = response.data.data.comment;
@@ -447,7 +442,7 @@ const CommentsSection = ({ studentId, userRole }) => {
                       type="file"
                       ref={fileInputRef}
                       multiple
-                      accept=".pdf,.jpg,.jpeg,.png,.mp4"
+                      accept=".pdf,.jpg,.jpeg,.png,.webp,.mp4,.mov,.webm"
                       onChange={handleFileSelect}
                       style={{ display: 'none' }}
                     />
@@ -564,7 +559,7 @@ const CommentsSection = ({ studentId, userRole }) => {
               type="file"
               ref={fileInputRef}
               multiple
-              accept=".pdf,.jpg,.jpeg,.png,.mp4"
+              accept=".pdf,.jpg,.jpeg,.png,.webp,.mp4,.mov,.webm"
               onChange={handleFileSelect}
               style={{ display: 'none' }}
             />

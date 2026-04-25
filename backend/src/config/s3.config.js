@@ -1,5 +1,15 @@
-const { S3Client } = require('@aws-sdk/client-s3');
 const config = require('./env');
+
+const { S3Client } = require('@aws-sdk/client-s3');
+
+/**
+ * PutObject integrity: SDK 3.729+ may attach x-amz-checksum-* headers. In several
+ * deployments that breaks SigV4 ("signature does not match"). Default to DISABLED.
+ * Opt in: AWS_S3_REQUEST_CHECKSUM_MODE=WHEN_REQUIRED
+ */
+const requestChecksumCalculation = process.env.AWS_S3_REQUEST_CHECKSUM_MODE ?? 'DISABLED';
+const responseChecksumValidation =
+  process.env.AWS_S3_RESPONSE_CHECKSUM_VALIDATION ?? 'DISABLED';
 
 /**
  * AWS S3 Client Configuration
@@ -11,6 +21,8 @@ const s3Client = new S3Client({
     accessKeyId: config.AWS_ACCESS_KEY_ID,
     secretAccessKey: config.AWS_SECRET_ACCESS_KEY,
   },
+  requestChecksumCalculation,
+  responseChecksumValidation,
 });
 
 /**

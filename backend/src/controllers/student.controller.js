@@ -9,6 +9,7 @@ const { logAudit, getClientIp } = require('../utils/audit.util');
 const { decrypt } = require('../utils/encryption.util');
 const { sendNewApplicationNotificationEmail } = require('../utils/email.util');
 const { v4: uuidv4 } = require('uuid');
+const { MAX_FILE_SIZE_BYTES } = require('../middlewares/upload.middleware');
 
 // Create Student
 const createStudent = async (req, res) => {
@@ -181,6 +182,9 @@ const getAllStudents = async (req, res) => {
     const query = { isDeleted: false };
     if (role === 'PARTNER') {
       query.partnerId = userId;
+    } else if (role === 'ADMIN') {
+      // Admin applications list should hide applications rejected/deleted by admin
+      query.rejectedByAdmin = { $ne: true };
     }
 
     // Get total count for pagination
@@ -312,7 +316,8 @@ const updateStudent = async (req, res) => {
         'Trc request',
         'Trc approved',
         'Trc rejected',
-        'Student Dropped'
+        'Student Dropped',
+        'Rejected by Bayroot Admin'
       ];
       if (validStatuses.includes(status)) {
         // Check if status is actually changing
@@ -448,10 +453,9 @@ const uploadDocuments = async (req, res) => {
           throw new Error(`Invalid file type: ${file.originalname}`);
         }
 
-        // Validate file size (max 20MB)
-        const maxSize = 20 * 1024 * 1024;
-        if (file.size > maxSize) {
-          throw new Error(`File ${file.originalname} exceeds maximum size of 20MB`);
+        // Validate file size (max 150MB)
+        if (file.size > MAX_FILE_SIZE_BYTES) {
+          throw new Error(`File ${file.originalname} exceeds maximum size of 150MB`);
         }
 
         // Generate file ID
@@ -535,10 +539,9 @@ const uploadOfferLetter = async (req, res) => {
       return sendError(res, 'Invalid file type. Only PDF and image files are allowed for offer letters', 400);
     }
 
-    // Validate file size (max 20MB)
-    const maxSize = 20 * 1024 * 1024;
-    if (req.file.size > maxSize) {
-      return sendError(res, 'File exceeds maximum size of 20MB', 400);
+    // Validate file size (max 150MB)
+    if (req.file.size > MAX_FILE_SIZE_BYTES) {
+      return sendError(res, 'File exceeds maximum size of 150MB', 400);
     }
 
     // Generate file ID
@@ -599,7 +602,7 @@ const uploadOfferLetter = async (req, res) => {
   }
 };
 
-// Delete student (Admin only) - Soft delete
+// Delete student (Admin only) - Soft reject from admin list
 const deleteStudent = async (req, res) => {
   try {
     const { id } = req.params;
@@ -616,9 +619,12 @@ const deleteStudent = async (req, res) => {
       return sendError(res, 'Student not found', 404);
     }
 
-    // Soft delete
-    student.isDeleted = true;
-    student.deletedAt = new Date();
+    // Soft reject: hidden from admin list, visible to partner with rejection message
+    student.rejectedByAdmin = true;
+    student.rejectedAt = new Date();
+    student.rejectedBy = userId;
+    student.status = 'Rejected by Bayroot Admin';
+    student.statusUpdatedAt = new Date();
     await student.save();
 
     // Log audit
@@ -629,12 +635,12 @@ const deleteStudent = async (req, res) => {
       action: 'DELETE_STUDENT',
       targetId: student._id,
       targetModel: 'Student',
-      metadata: { softDelete: true },
+      metadata: { softDelete: true, rejectedByAdmin: true },
       ipAddress: getClientIp(req),
       userAgent: req.get('user-agent')
     });
 
-    return sendSuccess(res, null, 'Student deleted successfully');
+    return sendSuccess(res, null, 'Application rejected and removed from admin list successfully');
   } catch (error) {
     return sendError(res, error.message, 500);
   }

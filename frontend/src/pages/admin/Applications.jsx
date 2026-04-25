@@ -10,6 +10,7 @@ const Applications = () => {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [deletingApplicationId, setDeletingApplicationId] = useState(null);
   
   // Initialize selectedStatus from URL params or default to 'All'
   const getInitialStatus = () => {
@@ -283,6 +284,31 @@ const Applications = () => {
       .join('')
       .toUpperCase()
       .slice(0, 2);
+  };
+
+  const handleDeleteApplication = async (app) => {
+    const appId = app?._id || app?.id;
+    if (!appId) return;
+
+    const confirmed = window.confirm(
+      `Delete application for "${app.fullName}"?\n\nThis will remove it from Admin Applications and show Partner that Bayroot admin rejected this application.`
+    );
+    if (!confirmed) return;
+
+    try {
+      setDeletingApplicationId(appId);
+      const response = await api.delete(`/students/${appId}`);
+      if (response.data?.success) {
+        setApplications((prev) => prev.filter((item) => (item._id || item.id) !== appId));
+      } else {
+        alert(response.data?.message || 'Failed to delete application');
+      }
+    } catch (error) {
+      console.error('Error deleting application:', error);
+      alert(error.response?.data?.message || 'Failed to delete application');
+    } finally {
+      setDeletingApplicationId(null);
+    }
   };
 
   return (
@@ -587,6 +613,7 @@ const Applications = () => {
                   <th>Documents</th>
                   <th>Status</th>
                   <th>Created Date</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -622,6 +649,16 @@ const Applications = () => {
                         </span>
                       </td>
                       <td>{formatDate(app.createdAt)}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn-delete-application"
+                          onClick={() => handleDeleteApplication(app)}
+                          disabled={deletingApplicationId === (app._id || app.id)}
+                        >
+                          {deletingApplicationId === (app._id || app.id) ? 'Deleting...' : 'Delete'}
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}

@@ -4,6 +4,7 @@ import AdminLayout from '../../components/layout/AdminLayout';
 import CommentsSection from '../../components/CommentsSection';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axios';
+import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_MB } from '../../constants/upload';
 import './StudentDetail.css';
 import '../partner/PartnerStudentDetail.css';
 
@@ -305,15 +306,15 @@ const StudentDetail = () => {
 
   const handleOfferLetterFileSelect = (file) => {
     // Validate file type (only PDF and images)
-    const validTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+    const validTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     if (!validTypes.includes(file.type)) {
-      alert('Invalid file type. Please upload PDF or image files (JPG, PNG).');
+      alert('Invalid file type. Please upload PDF or image files (JPG, JPEG, PNG, WEBP).');
       return;
     }
 
-    // Validate file size (20MB limit)
-    if (file.size > 20 * 1024 * 1024) {
-      alert('File size exceeds 20MB limit.');
+    // Validate file size
+    if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+      alert(`File size exceeds ${MAX_UPLOAD_SIZE_MB}MB limit.`);
       return;
     }
 
@@ -798,7 +799,7 @@ const StudentDetail = () => {
                     <input
                       ref={offerLetterInputRef}
                       type="file"
-                      accept=".pdf,.jpg,.jpeg,.png"
+                      accept=".pdf,.jpg,.jpeg,.png,.webp"
                       style={{ display: 'none' }}
                       onChange={(e) => {
                         const file = e.target.files?.[0];
@@ -815,7 +816,7 @@ const StudentDetail = () => {
                     <p className="upload-text">
                       {isDraggingOfferLetter ? 'Drop the file here' : 'Drag and drop offer letter here or click to browse'}
                     </p>
-                    <p className="upload-hint">PDF, JPG, PNG (Max 20MB)</p>
+                    <p className="upload-hint">PDF, JPG, JPEG, PNG, WEBP (Max 150MB)</p>
                     {offerLetterFile && (
                       <div className="selected-file">
                         <span>{offerLetterFile.name}</span>

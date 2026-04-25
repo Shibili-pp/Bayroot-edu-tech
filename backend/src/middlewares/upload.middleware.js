@@ -1,5 +1,6 @@
 const multer = require('multer');
 const path = require('path');
+const MAX_FILE_SIZE_BYTES = 150 * 1024 * 1024; // 150MB
 
 /**
  * File type validation
@@ -7,13 +8,13 @@ const path = require('path');
  */
 const allowedMimeTypes = {
   images: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
-  videos: ['video/mp4'],
+  videos: ['video/mp4', 'video/quicktime', 'video/webm'],
   pdfs: ['application/pdf'],
 };
 
 const allowedExtensions = {
   images: /\.(jpg|jpeg|png|webp)$/i,
-  videos: /\.(mp4)$/i,
+  videos: /\.(mp4|mov|webm)$/i,
   pdfs: /\.(pdf)$/i,
 };
 
@@ -41,7 +42,7 @@ const fileFilter = (req, file, cb) => {
     return cb(null, true);
   } else {
     cb(new Error(
-      'Invalid file type. Only images (jpg, png, jpeg, webp), videos (mp4), and PDFs are allowed.'
+      'Invalid file type. Only images (jpg, png, jpeg, webp), videos (mp4, mov, webm), and PDFs are allowed.'
     ));
   }
 };
@@ -53,7 +54,7 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 20 * 1024 * 1024, // 20MB max file size
+    fileSize: MAX_FILE_SIZE_BYTES,
   },
   fileFilter: fileFilter,
 });
@@ -78,4 +79,5 @@ module.exports = {
   upload,
   getFileType,
   allowedMimeTypes,
+  MAX_FILE_SIZE_BYTES,
 };

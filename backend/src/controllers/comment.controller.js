@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Comment = require('../models/Comment.model');
 const Student = require('../models/Student.model');
 const Admin = require('../models/Admin.model');
@@ -7,6 +8,7 @@ const { logAudit, getClientIp } = require('../utils/audit.util');
 const { sendCommentNotificationEmail } = require('../utils/email.util');
 const { emitUnreadCount } = require('../services/socket.service');
 const { v4: uuidv4 } = require('uuid');
+const { MAX_FILE_SIZE_BYTES } = require('../middlewares/upload.middleware');
 
 // Get all unread admin comments for partner (bulk endpoint)
 const getUnreadAdminComments = async (req, res) => {
@@ -205,11 +207,16 @@ const createComment = async (req, res) => {
     const { studentId } = req.params;
     const userId = req.user.userId || req.user.id;
     const role = req.user.role;
-    const { message, parentCommentId } = req.body;
+    const { parentCommentId } = req.body;
+    const rawMessage =
+      req.body && req.body.message != null ? String(req.body.message) : '';
+    const hasFiles = req.files && req.files.length > 0;
 
-    if (!message || !message.trim()) {
-      return sendError(res, 'Message is required', 400);
+    if (!rawMessage.trim() && !hasFiles) {
+      return sendError(res, 'Please enter a message or attach a file', 400);
     }
+
+    const messageForDb = rawMessage.trim() || (hasFiles ? '[Attachment]' : '');
 
     // Verify student exists and user has access
     const query = { _id: studentId, isDeleted: false };
@@ -224,6 +231,9 @@ const createComment = async (req, res) => {
 
     // If replying, verify parent comment exists
     if (parentCommentId) {
+      if (!mongoose.Types.ObjectId.isValid(parentCommentId)) {
+        return sendError(res, 'Invalid parent comment', 400);
+      }
       const parentComment = await Comment.findOne({ _id: parentCommentId, studentId });
       if (!parentComment) {
         return sendError(res, 'Parent comment not found', 404);
@@ -243,9 +253,8 @@ const createComment = async (req, res) => {
             throw new Error(`Invalid file type: ${file.originalname}`);
           }
 
-          const maxSize = 20 * 1024 * 1024;
-          if (file.size > maxSize) {
-            throw new Error(`File ${file.originalname} exceeds maximum size of 20MB`);
+          if (file.size > MAX_FILE_SIZE_BYTES) {
+            throw new Error(`File ${file.originalname} exceeds maximum size of 150MB`);
           }
 
           const fileId = uuidv4();
@@ -274,7 +283,7 @@ const createComment = async (req, res) => {
       authorId: userId,
       authorModel: role === 'ADMIN' ? 'Admin' : 'Partner',
       role,
-      message: message.trim(),
+      message: messageForDb,
       documents,
       parentCommentId: parentCommentId || null,
       isRead: false
@@ -304,7 +313,7 @@ const createComment = async (req, res) => {
             studentName: studentWithPartner.fullName,
             commenterName: commenterName,
             commenterRole: 'PARTNER',
-            message: message.trim(),
+            message: messageForDb,
             isReply: !!parentCommentId
           });
         }
@@ -317,7 +326,7 @@ const createComment = async (req, res) => {
             studentName: studentWithPartner.fullName,
             commenterName: commenterName,
             commenterRole: 'ADMIN',
-            message: message.trim(),
+            message: messageForDb,
             isReply: !!parentCommentId
           });
         }

@@ -30,8 +30,21 @@ export const initializeSocket = (token) => {
     socket.disconnect();
   }
 
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
-  const socketUrl = apiBaseUrl.replace('/api', ''); // Remove /api suffix for socket connection
+  // Build origin only (scheme + host + port). Do not use naive .replace('/api','') —
+  // misconfigured env can yield invalid URLs and Socket.IO will try ws://https/...
+  const raw = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+  const explicitSocket = import.meta.env.VITE_SOCKET_URL;
+  let socketUrl;
+  if (explicitSocket && String(explicitSocket).trim()) {
+    socketUrl = String(explicitSocket).trim().replace(/\/+$/, '');
+  } else {
+    try {
+      const u = new URL(raw.includes('://') ? raw : `https://${raw}`);
+      socketUrl = `${u.protocol}//${u.host}`;
+    } catch {
+      socketUrl = 'http://localhost:3000';
+    }
+  }
 
   socket = io(socketUrl, {
     auth: {

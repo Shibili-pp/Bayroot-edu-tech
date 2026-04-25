@@ -331,6 +331,13 @@
   color: #111827;
 }
 
+.rejection-note {
+  margin: 0.35rem 0 0 3rem;
+  color: #991b1b;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
 .doc-count {
   font-weight: 600;
   color: #2563eb;

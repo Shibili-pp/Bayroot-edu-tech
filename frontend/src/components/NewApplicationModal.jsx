@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
+import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_MB } from '../constants/upload';
 import './NewApplicationModal.css';
 
 const NewApplicationModal = ({ isOpen, onClose, onSuccess }) => {
@@ -142,19 +143,19 @@ const NewApplicationModal = ({ isOpen, onClose, onSuccess }) => {
   const handleFileUpload = async (files) => {
     const fileArray = Array.from(files);
     const validFiles = fileArray.filter(file => {
-      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf', 'video/mp4'];
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf', 'video/mp4', 'video/quicktime', 'video/webm'];
       return validTypes.includes(file.type);
     });
 
     if (validFiles.length !== fileArray.length) {
-      setError('Some files are invalid. Only JPG, PNG, PDF, and MP4 files are allowed.');
+      setError('Some files are invalid. Only JPG, JPEG, PNG, WEBP, PDF, MP4, MOV, and WEBM files are allowed.');
       return;
     }
 
-    // Check file sizes (10MB limit)
-    const oversizedFiles = validFiles.filter(file => file.size > 10 * 1024 * 1024);
+    // Check file sizes
+    const oversizedFiles = validFiles.filter(file => file.size > MAX_UPLOAD_SIZE_BYTES);
     if (oversizedFiles.length > 0) {
-      setError('Some files exceed the 10MB size limit.');
+      setError(`Some files exceed the ${MAX_UPLOAD_SIZE_MB}MB size limit.`);
       return;
     }
 
@@ -610,7 +611,7 @@ const NewApplicationModal = ({ isOpen, onClose, onSuccess }) => {
                 type="file"
                 id="file-input"
                 multiple
-                accept=".jpg,.jpeg,.png,.pdf,.mp4"
+                accept=".jpg,.jpeg,.png,.webp,.pdf,.mp4,.mov,.webm"
                 onChange={handleFileInputChange}
                 disabled={submitting}
                 style={{ display: 'none' }}
@@ -624,7 +625,7 @@ const NewApplicationModal = ({ isOpen, onClose, onSuccess }) => {
                 <div className="drag-drop-text">
                   <strong>Drag and drop files here</strong>
                   <span>or click to browse</span>
-                  <small>Supports: JPG, PNG, PDF, MP4 (Max 10MB per file)</small>
+                  <small>Supports: JPG, JPEG, PNG, WEBP, PDF, MP4, MOV, WEBM (Max 150MB per file)</small>
                 </div>
               </label>
             </div>

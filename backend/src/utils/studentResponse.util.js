@@ -35,6 +35,8 @@ const formatStudentResponse = (student, role) => {
         email: studentObj.partnerId.email
       } : null,
       status: studentObj.status || 'Under Review',
+      rejectedByAdmin: !!studentObj.rejectedByAdmin,
+      rejectedAt: studentObj.rejectedAt || null,
       documents: studentObj.documents || [],
       offerLetter: studentObj.offerLetter || null,
       createdAt: studentObj.createdAt
@@ -60,6 +62,8 @@ const formatStudentResponse = (student, role) => {
       intakeYear: studentObj.intakeYear || null,
       partnerId: studentObj.partnerId,
       status: studentObj.status || 'Under Review',
+      rejectedByAdmin: !!studentObj.rejectedByAdmin,
+      rejectedAt: studentObj.rejectedAt || null,
       documents: studentObj.documents || [],
       offerLetter: studentObj.offerLetter || null,
       createdAt: studentObj.createdAt

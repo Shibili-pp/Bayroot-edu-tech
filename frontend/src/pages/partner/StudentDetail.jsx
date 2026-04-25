@@ -4,6 +4,7 @@ import PartnerLayout from '../../components/layout/PartnerLayout';
 import CommentsSection from '../../components/CommentsSection';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axios';
+import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_MB } from '../../constants/upload';
 import '../admin/StudentDetail.css';
 import './PartnerStudentDetail.css';
 
@@ -256,15 +257,15 @@ const StudentDetail = () => {
     }
 
     // Validate file type
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf', 'video/mp4', 'video/quicktime'];
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf', 'video/mp4', 'video/quicktime', 'video/webm'];
     if (!validTypes.includes(file.type)) {
-      alert('Invalid file type. Please upload JPG, PNG, PDF, or MP4 files.');
+      alert('Invalid file type. Please upload JPG, JPEG, PNG, WEBP, PDF, MP4, MOV, or WEBM files.');
       return;
     }
 
-    // Validate file size (20MB limit)
-    if (file.size > 20 * 1024 * 1024) {
-      alert('File size exceeds 20MB limit.');
+    // Validate file size
+    if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+      alert(`File size exceeds ${MAX_UPLOAD_SIZE_MB}MB limit.`);
       return;
     }
 
@@ -294,13 +295,13 @@ const StudentDetail = () => {
 
     const fileArray = Array.from(files);
     const validFiles = fileArray.filter(file => {
-      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf', 'video/mp4', 'video/quicktime'];
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf', 'video/mp4', 'video/quicktime', 'video/webm'];
       if (!validTypes.includes(file.type)) {
-        alert(`Invalid file type for ${file.name}. Please upload JPG, PNG, PDF, or MP4 files.`);
+        alert(`Invalid file type for ${file.name}. Please upload JPG, JPEG, PNG, WEBP, PDF, MP4, MOV, or WEBM files.`);
         return false;
       }
-      if (file.size > 20 * 1024 * 1024) {
-        alert(`File size exceeds 20MB limit for ${file.name}.`);
+      if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+        alert(`File size exceeds ${MAX_UPLOAD_SIZE_MB}MB limit for ${file.name}.`);
         return false;
       }
       return true;
@@ -452,14 +453,14 @@ const StudentDetail = () => {
       return;
     }
 
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'];
     if (!validTypes.includes(file.type)) {
-      alert('Invalid file type. Please upload JPG, PNG, or PDF files.');
+      alert('Invalid file type. Please upload JPG, JPEG, PNG, WEBP, or PDF files.');
       return;
     }
 
-    if (file.size > 20 * 1024 * 1024) {
-      alert('File size exceeds 20MB limit.');
+    if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+      alert(`File size exceeds ${MAX_UPLOAD_SIZE_MB}MB limit.`);
       return;
     }
 
@@ -1353,7 +1354,7 @@ const StudentDetail = () => {
                                 type="file"
                                 id="general-file-input"
                                 multiple
-                                accept=".pdf,.jpg,.jpeg,.png,.mp4,.mov"
+                                accept=".pdf,.jpg,.jpeg,.png,.webp,.mp4,.mov,.webm"
                                 onChange={handleGeneralFileInputChange}
                                 disabled={submitting}
                                 style={{ display: 'none' }}
@@ -1368,7 +1369,7 @@ const StudentDetail = () => {
                                   <strong style={{ color: '#111827', fontSize: '0.9375rem' }}>Drag and drop files here</strong>
                                   <span style={{ color: '#6b7280', fontSize: '0.875rem' }}>or click to browse</span>
                                   <small style={{ color: '#9ca3af', fontSize: '0.75rem', marginTop: '0.25rem' }}>
-                                    Supports: JPG, PNG, PDF, MP4 (Max 20MB per file)
+                                    Supports: JPG, JPEG, PNG, WEBP, PDF, MP4, MOV, WEBM (Max 150MB per file)
                                   </small>
                                 </div>
                               </label>
@@ -1449,7 +1450,7 @@ const StudentDetail = () => {
                                   file={appProcessForm.documents[documentType]}
                                   onUpload={handleDocumentUpload}
                                   uploading={uploadingFiles[documentType]}
-                                  accept=".pdf,.jpg,.jpeg,.png,.mp4,.mov"
+                                  accept=".pdf,.jpg,.jpeg,.png,.webp,.mp4,.mov,.webm"
                                   required={true}
                                 />
                               );
@@ -1617,7 +1618,7 @@ const StudentDetail = () => {
                       file={visaForm.feePaymentStatement}
                       onUpload={handleVisaDocumentUpload}
                       uploading={uploadingFiles.feePaymentStatement}
-                      accept=".pdf,.jpg,.jpeg,.png"
+                      accept=".pdf,.jpg,.jpeg,.png,.webp"
                     />
                   </div>
 

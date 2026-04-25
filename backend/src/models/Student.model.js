@@ -88,7 +88,8 @@ const studentSchema = new mongoose.Schema({
       'Trc request',
       'Trc approved',
       'Trc rejected',
-      'Student Dropped'
+      'Student Dropped',
+      'Rejected by Bayroot Admin'
     ],
     default: 'Under Review',
     trim: true
@@ -153,6 +154,20 @@ const studentSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
     index: true
+  },
+  rejectedByAdmin: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  rejectedAt: {
+    type: Date,
+    default: null
+  },
+  rejectedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Admin',
+    default: null
   },
   deletedAt: {
     type: Date,

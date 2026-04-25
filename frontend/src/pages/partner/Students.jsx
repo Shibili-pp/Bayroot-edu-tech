@@ -138,7 +138,8 @@ const Students = () => {
     'Trc request',
     'Trc approved',
     'Trc rejected',
-    'Student Dropped'
+      'Student Dropped',
+      'Rejected by Bayroot Admin'
   ];
 
   // Status flow: maps each status to the next pending status in the process
@@ -186,7 +187,8 @@ const Students = () => {
       'Trc request': 'status-info',
       'Trc approved': 'status-success',
       'Trc rejected': 'status-danger',
-      'Student Dropped': 'status-danger'
+      'Student Dropped': 'status-danger',
+      'Rejected by Bayroot Admin': 'status-danger'
     };
 
     return {
@@ -318,6 +320,7 @@ const Students = () => {
               </optgroup>
               <optgroup label="Other">
                 <option value="Student Dropped">Student Dropped</option>
+                <option value="Rejected by Bayroot Admin">Rejected by Bayroot Admin</option>
               </optgroup>
             </select>
           </div>
@@ -383,6 +386,7 @@ const Students = () => {
                   const status = getStatusBadge(student);
                   const studentId = student._id || student.id;
                   const isDropped = (student.status || 'Under Review') === 'Student Dropped';
+                  const isRejectedByAdmin = !!student.rejectedByAdmin || (student.status === 'Rejected by Bayroot Admin');
                   const isDropping = droppingStudentId === studentId;
                   return (
                     <tr key={student._id || student.id} className="student-row">
@@ -397,6 +401,11 @@ const Students = () => {
                           </div>
                           <span className="student-name">{student.fullName}</span>
                         </div>
+                        {isRejectedByAdmin && (
+                          <p className="rejection-note">
+                            Bayroot admin panel rejected this application ({student.fullName})
+                          </p>
+                        )}
                       </td>
                       <td>{student.universityId?.name || 'N/A'}</td>
                       <td>{student.courseId?.name || 'N/A'}</td>
