@@ -9,13 +9,11 @@ import './Signup.css';
  * Signup Page - Matches the design from image
  */
 const Signup = () => {
-  const [accountType, setAccountType] = useState('partner'); // 'partner' or 'admin'
   const [email, setEmail] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [companyName, setCompanyName] = useState(''); // For partner
-  const [name, setName] = useState(''); // For admin
+  const [companyName, setCompanyName] = useState('');
   const [verificationCode, setVerificationCode] = useState(['', '', '', '']);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -63,17 +61,13 @@ const Signup = () => {
     setSendingOTP(true);
 
     try {
-      const endpoint = accountType === 'admin' 
-        ? '/admin/send-signup-otp' 
-        : '/partner/send-signup-otp';
-      
       // Send both email and mobileNumber (if available) to check for duplicates
       const payload = { email };
       if (mobileNumber) {
         payload.mobileNumber = mobileNumber;
       }
       
-      const response = await api.post(endpoint, payload);
+      const response = await api.post('/partner/send-signup-otp', payload);
 
       if (response.data.success) {
         setOtpSent(true);
@@ -139,12 +133,13 @@ const Signup = () => {
     setLoading(true);
 
     try {
-      const endpoint = accountType === 'admin' ? '/admin/register' : '/partner/register';
-      const payload = accountType === 'admin' 
-        ? { name, email, mobileNumber, password, otp: code }
-        : { companyName, email, mobileNumber, password, otp: code };
-
-      const response = await api.post(endpoint, payload);
+      const response = await api.post('/partner/register', {
+        companyName,
+        email,
+        mobileNumber,
+        password,
+        otp: code,
+      });
 
       if (response.data.success) {
         setSuccess('Account created successfully! Redirecting to login...');
@@ -215,54 +210,24 @@ const Signup = () => {
           
           <h2 className="signup-title">Create Account</h2>
           <p className="signup-subtitle">Join our global community today</p>
-          
-          {/* Account Type Selector */}
-          <div className="account-type-selector">
-            <button
-              type="button"
-              className={`type-btn ${accountType === 'partner' ? 'active' : ''}`}
-              onClick={() => setAccountType('partner')}
-            >
-              Partner Portal
-            </button>
-            <button
-              type="button"
-              className={`type-btn ${accountType === 'admin' ? 'active' : ''}`}
-              onClick={() => setAccountType('admin')}
-            >
-              Administrator
-            </button>
+
+          <div className="account-type-selector account-type-single">
+            <span className="partner-portal-label">Partner Portal</span>
           </div>
 
           <form onSubmit={handleSubmit} className="signup-form">
-            {/* Company Name (Partner) or Name (Admin) */}
-            {accountType === 'partner' ? (
-              <div className="form-group">
-                <label htmlFor="companyName">Company Name</label>
-                <input
-                  id="companyName"
-                  type="text"
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                  className="form-input"
-                  required
-                  placeholder="Enter company name"
-                />
-              </div>
-            ) : (
-              <div className="form-group">
-                <label htmlFor="name">Full Name</label>
-                <input
-                  id="name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="form-input"
-                  required
-                  placeholder="Enter your full name"
-                />
-              </div>
-            )}
+            <div className="form-group">
+              <label htmlFor="companyName">Company Name</label>
+              <input
+                id="companyName"
+                type="text"
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                className="form-input"
+                required
+                placeholder="Enter company name"
+              />
+            </div>
 
             {/* Email */}
             <div className="form-group">

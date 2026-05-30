@@ -210,6 +210,22 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+.account-type-single {
+  justify-content: center;
+}
+
+.partner-portal-label {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  background: #ffffff;
+  color: #333333;
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-align: center;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
 /* Form Styles */
 .signup-form {
   display: flex;
